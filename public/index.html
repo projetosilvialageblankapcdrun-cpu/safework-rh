@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeWork RH & SST - Sistema Integrado DP e Segurança do Trabalho</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <!-- TELA DE LOGIN & AUTENTICAÇÃO -->
+    <div id="login-screen" class="login-overlay">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-logo">🛡️</div>
+                <div class="login-title">SafeWork RH & SST</div>
+                <div class="login-subtitle">Sistema Integrado de Departamento Pessoal e Segurança do Trabalho</div>
+            </div>
+
+            <form id="form-login" onsubmit="App.fazerLogin(event)" style="display: flex; flex-direction: column; gap: 14px;">
+                <div id="login-error-msg" style="display: none; padding: 10px 14px; background: #fee2e2; border: 1px solid #fca5a5; color: #b91c1c; border-radius: 8px; font-size: 0.85rem; font-weight: 500;"></div>
+
+                <div class="form-group">
+                    <label class="form-label" for="login-usuario">Usuário ou E-mail</label>
+                    <input type="text" id="login-usuario" class="form-control" placeholder="Ex: admin ou seu.email@empresa.com" required autofocus autocomplete="username">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="login-senha">Senha de Acesso</label>
+                    <input type="password" id="login-senha" class="form-control" placeholder="Digite sua senha" required autocomplete="current-password">
+                </div>
+
+                <button type="submit" id="btn-login-submit" class="btn btn-primary" style="padding: 12px; font-size: 1rem; justify-content: center; margin-top: 6px;">
+                    🔐 Acessar Sistema
+                </button>
+            </form>
+
+            <div class="login-demo-box">
+                <div style="font-weight: 700; margin-bottom: 6px; color: #1e293b;">🔑 Acessos Rápidos (Demonstração):</div>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div>
+                        <button type="button" class="login-demo-btn" onclick="App.preencherCredencialDemo('admin', 'admin123')">Administrador Master</button>
+                        <span style="font-size: 0.75rem; color: #64748b;">(admin / admin123)</span>
+                    </div>
+                    <div>
+                        <button type="button" class="login-demo-btn" onclick="App.preencherCredencialDemo('carlos.dp', 'carlos123')">Gestor DP</button>
+                        <span style="font-size: 0.75rem; color: #64748b;">(carlos.dp / carlos123)</span>
+                    </div>
+                    <div>
+                        <button type="button" class="login-demo-btn" onclick="App.preencherCredencialDemo('marcos.sst', 'marcos123')">Técnico SST</button>
+                        <span style="font-size: 0.75rem; color: #64748b;">(marcos.sst / marcos123)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="brand-badge">
+                    <div class="brand-icon">🛡️</div>
+                    <div>
+                        <div class="brand-title">SafeWork</div>
+                        <div class="brand-subtitle">RH & SST Integrado</div>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-category">Geral</div>
+                <a class="nav-link active" data-tab="dashboard">
+                    <span class="icon">📊</span>
+                    <span>Dashboard 360°</span>
+                </a>
+
+                <div class="nav-category">Departamento Pessoal</div>
+                <a class="nav-link" data-tab="colaboradores">
+                    <span class="icon">👥</span>
+                    <span>Colaboradores & Admissão</span>
+                </a>
+                <a class="nav-link" data-tab="ferias">
+                    <span class="icon">🏖️</span>
+                    <span>Gestão de Férias</span>
+                </a>
+                <a class="nav-link" data-tab="ponto">
+                    <span class="icon">⏱️</span>
+                    <span>Ponto & Atestados</span>
+                </a>
+
+                <div class="nav-category">Segurança e Saúde (SST)</div>
+                <a class="nav-link" data-tab="pgr">
+                    <span class="icon">🦺</span>
+                    <span>PGR / Riscos (NR-01)</span>
+                </a>
+                <a class="nav-link" data-tab="pcmso">
+                    <span class="icon">🩺</span>
+                    <span>PCMSO & ASO (NR-07)</span>
+                </a>
+                <a class="nav-link" data-tab="epis">
+                    <span class="icon">🧤</span>
+                    <span>Gestão de EPIs (NR-06)</span>
+                </a>
+                <a class="nav-link" data-tab="treinamentos">
+                    <span class="icon">🎓</span>
+                    <span>Treinamentos NRs</span>
+                </a>
+                <a class="nav-link" data-tab="acidentes">
+                    <span class="icon">⚠️</span>
+                    <span>Acidentes & CAT</span>
+                </a>
+
+                <div class="nav-category">Conformidade eSocial</div>
+                <a class="nav-link" data-tab="esocial">
+                    <span class="icon">📑</span>
+                    <span>Central eSocial & PPP</span>
+                </a>
+
+                <div class="nav-category" id="nav-cat-admin">Administração</div>
+                <a class="nav-link" data-tab="usuarios" id="nav-item-usuarios">
+                    <span class="icon">👥</span>
+                    <span>Gestão de Usuários</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="empresa-info-badge">
+                    <div class="empresa-logo-icon">🏭</div>
+                    <div>
+                        <div style="font-weight: 700; color: #fff; font-size: 0.8rem;">MetalSul S/A</div>
+                        <div style="font-size: 0.7rem;">CNAE 25.11-0 | Grau 3</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN WRAPPER -->
+        <div class="main-wrapper">
+            <!-- TOPBAR -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <div>
+                        <h1 class="page-title" id="page-title">Dashboard Executivo</h1>
+                        <p class="page-description" id="page-description">Visão 360° de DP, Riscos Ocupacionais, Absenteísmo e Alertas</p>
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <div class="status-pill">
+                        <span class="pulse-dot"></span>
+                        <span>eSocial & CLT Conforme</span>
+                    </div>
+                    <div class="user-topbar-profile" id="user-topbar-profile">
+                        <div class="user-avatar-circle" id="user-topbar-avatar">AD</div>
+                        <div class="user-meta-info">
+                            <span class="user-name-label" id="user-topbar-nome">Administrador</span>
+                            <span class="user-role-badge" id="user-topbar-perfil">Administrador</span>
+                        </div>
+                        <button type="button" class="btn-logout" onclick="App.fazerLogout()" title="Sair do sistema">
+                            <span>🚪</span> Sair
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- CONTEÚDO PRINCIPAL -->
+            <main class="content-area">
+                
+                <!-- 1. ABA: DASHBOARD -->
+                <div id="view-dashboard" class="tab-view">
+                    <!-- KPIs -->
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Colaboradores Ativos</span>
+                                <div class="kpi-icon" style="background: #e0f2fe; color: #0284c7;">👥</div>
+                            </div>
+                            <div class="kpi-value" id="kpi-ativos">-</div>
+                            <div class="kpi-footer" id="kpi-total-colab">Carregando...</div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Taxa Frequência (TF)</span>
+                                <div class="kpi-icon" style="background: #ecfdf5; color: #10b981;">📉</div>
+                            </div>
+                            <div class="kpi-value" id="kpi-tf">-</div>
+                            <div class="kpi-footer">NBR 14280 (Acidentes/HHT)</div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Taxa Gravidade (TG)</span>
+                                <div class="kpi-icon" style="background: #fef2f2; color: #ef4444;">⏱️</div>
+                            </div>
+                            <div class="kpi-value" id="kpi-tg">-</div>
+                            <div class="kpi-footer">Dias perdidos por acidentes</div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Taxa Absenteísmo</span>
+                                <div class="kpi-icon" style="background: #fffbeb; color: #f59e0b;">🏥</div>
+                            </div>
+                            <div class="kpi-value" id="kpi-absenteismo">-</div>
+                            <div class="kpi-footer">Atestados médicos no mês</div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Riscos Críticos/Altos</span>
+                                <div class="kpi-icon" style="background: #fef2f2; color: #ef4444;">🔥</div>
+                            </div>
+                            <div class="kpi-value" id="kpi-riscos-altos">-</div>
+                            <div class="kpi-footer" id="kpi-total-riscos">NR-01 GRO/PGR</div>
+                        </div>
+                    </div>
+
+                    <!-- ALERTAS PROATIVOS -->
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <span>🚨</span> Central de Alertas e Vencimentos Regulamentares
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <div id="dashboard-alerts-list">Carregando alertas...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. ABA: COLABORADORES (DP) -->
+                <div id="view-colaboradores" class="tab-view" style="display: none;">
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div class="panel-title">Quadro de Colaboradores e Admissão</div>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" id="search-colaborador" class="form-control" placeholder="Buscar por nome, CPF ou matrícula..." style="width: 280px;" oninput="App.renderColaboradores()">
+                                <button class="btn btn-primary" onclick="App.abrirModalNovoColaborador()">+ Nova Admissão</button>
+                            </div>
+                        </div>
+                        <div class="panel-body" style="padding: 0;">
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Matrícula</th>
+                                            <th>Colaborador</th>
+                                            <th>Cargo</th>
+                                            <th>Setor</th>
+                                            <th>Admissão</th>
+                                            <th>Salário Base</th>
+                                            <th>Status</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-colaboradores"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. ABA: FÉRIAS (DP) -->
+                <div id="view-ferias" class="tab-view" style="display: none;">
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div class="panel-title">Programação de Férias e Controle Concessivo (CLT)</div>
+                        </div>
+                        <div class="panel-body" style="padding: 0;">
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Colaborador</th>
+                                            <th>Função</th>
+                                            <th>Período Aquisitivo</th>
+                                            <th>Limite Concessivo (Dobra)</th>
+                                            <th>Período de Gozo</th>
+                                            <th>Abono 1/3</th>
+                                            <th>Status</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-ferias"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. ABA: PONTO & ATESTADOS -->
+                <div id="view-ponto" class="tab-view" style="display: none;">
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div class="panel-title">Atestados Médicos e Afastamentos Ocupacionais</div>
+                            <button class="btn btn-primary" onclick="App.abrirModalNovoAtestado()">+ Lançar Atestado</button>
+                        </div>
+                        <div class="panel-body" style="padding: 0;">
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Colaborador</th>
+                                            <th>Cargo</th>
+                                            <th>Período</th>
+                                            <th>Dias</th>
+                                            <th>CID-10</th>
+                                            <th>Médico Assistente</th>
+                                            <th>Encaminhado INSS</th>
+                                            <th>Tipo Afastamento</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-atestados"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. ABA: PGR / GRO (NR-01) -->
+                <div id="view-pgr" class="tab-view" style="display: none;">
+                    <!-- INVENTÁRIO DE RISCOS -->
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div class="panel-title">Inventário Geral de Riscos Ocupacionais (NR-01)</div>
+                        </div>
+                        <div class="panel-body" style="padding: 0;">
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Setor</th>
+                                            <th>Grupo</th>
+                                            <th>Perigo / Fonte Geradora</th>
+                                            <th>Avaliação</th>
+                                            <th>Matriz (P × S)</th>
+                                            <th>Nível Risco</th>
+                                            <th>Medidas de Controle</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-riscos"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PLANOS DE AÇÃO 5W2H -->
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div class="panel-title">Plano de Ação 5W2H para Mitigação de Riscos</div>
+                        </div>
+                        <div class="panel-body" style="padding: 0;">
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>O quê (Ação)</th>
+                                            <th>Onde (Local)</th>
+                                            <th>Quem (Responsável)</th>
+                                            <th>Quando (Prazo)</th>
+                                            <th>Custo Estimado</th>
+                                            <th>Status</th>
+                                            <th>Ação</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-planos5w2h"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ORDENS DE SERVIÇO -->
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div class="panel-title">Ordens de Serviço NR-01 Cadastradas por Função</div>
+                            <button class="btn btn-primary" onclick="App.abrirGeradorOs()">+ Gerar Ordem de Serviço (O.S.)</button>
+                        </div>
+                        <div class="panel-body" id="list-ordens-servico"></div>
+                    </div>
+                </div>
+
+                <!-- 6. ABA: PCMSO & ASO (NR-07) -->
+                <div id="view-pcmso" class="tab-view" style="display: none;">
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div class="panel-title">Controle de Vencimentos de ASOs (Próximos 60 dias)</div>
+                        </div>
+                        <div class="panel-body" id="pcmso-vencimentos-box"></div>
+                    </div>
+
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div class="panel-title">Atestados de Saúde Ocupacional (ASOs) Emitidos</div>
+                        </div>
+                        <div class="panel-body" style="padding: 0;">
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Colaborador</th>
+                                            <th>Cargo</th>
+                                            <th>Tipo de ASO</th>
+                                            <th>Emissão</th>
+                                            <th>Validade</th>
+                                            <th>Aptidão</th>
+                                            <th>Médico Examinador</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-asos"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7. ABA: GESTÃO DE EPIS (NR-06) -->
+                <div id="view-epis" class="tab-view" style="display: none;">
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div class="panel-title">Catálogo de EPIs com Certificado de Aprovação (CA)</div>
+                        </div>
+                        <div class="panel-body" style="padding: 0;">
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Equipamento</th>
+                                            <th>Nº C.A.</th>
+                                            <th>Validade C.A.</th>
+                                            <th>Fabricante</th>
+                                            <th>Tipo Proteção</th>
+                                            <th>Estoque</th>
+                                            <th>Custo Unit.</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-catalogo-epis"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div class="panel-title">Histórico de Entregas e Fichas de EPI</div>
+                            <button class="btn btn-primary" onclick="App.abrirModalEntregaEpi()">+ Nova Entrega de EPI</button>
+                        </div>
+                        <div class="panel-body" style="padding: 0;">
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Colaborador</th>
+                                            <th>EPI Fornecido</th>
+                                            <th>Data Entrega</th>
+                                            <th>Qtd</th>
+                                            <th>Previsão Troca</th>
+                                            <th>Motivo</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-entregas-epis"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 8. ABA: TREINAMENTOS NRS -->
+                <div id="view-treinamentos" class="tab-view" style="display: none;">
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div class="panel-title">Capacitações Obrigatórias de Normas Regulamentadoras</div>
+                        </div>
+                        <div class="panel-body" style="padding: 0;">
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Colaborador</th>
+                                            <th>Norma / Curso</th>
+                                            <th>Realização</th>
+                                            <th>Validade / Reciclagem</th>
+                                            <th>Status</th>
+                                            <th>Instrutor</th>
+                                            <th>Nº Certificado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-treinamentos"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 9. ABA: ACIDENTES & CAT (S-2210) -->
+                <div id="view-acidentes" class="tab-view" style="display: none;">
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div class="panel-title">Registro de Acidentes e Comunicações de Acidente de Trabalho (CAT)</div>
+                        </div>
+                        <div class="panel-body" style="padding: 0;">
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nº CAT</th>
+                                            <th>Colaborador</th>
+                                            <th>Data/Hora</th>
+                                            <th>Tipo</th>
+                                            <th>Local</th>
+                                            <th>Parte do Corpo</th>
+                                            <th>Afastamento</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-acidentes"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 10. ABA: CENTRAL ESOCIAL & PPP -->
+                <div id="view-esocial" class="tab-view" style="display: none;">
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div class="panel-title">Transmissões e Eventos eSocial de SST (S-2210, S-2220, S-2240)</div>
+                        </div>
+                        <div class="panel-body" style="padding: 0;">
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Evento</th>
+                                            <th>Trabalhador</th>
+                                            <th>Data Geração</th>
+                                            <th>Status Envio</th>
+                                            <th>Protocolo / Recibo</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-esocial-eventos"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                <!-- 11. ABA: GESTÃO DE USUÁRIOS (ADMINISTRADOR) -->
+                <div id="view-usuarios" class="tab-view" style="display: none;">
+                    <div class="panel-card">
+                        <div class="panel-header" style="justify-content: space-between;">
+                            <div>
+                                <div class="panel-title">👥 Usuários Cadastrados & Gestão de Acessos</div>
+                                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 3px;">
+                                    Módulo exclusivo do Administrador Geral para criar novos usuários, alterar senhas e perfis de permissão.
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" onclick="App.abrirModalNovoUsuario()">
+                                <span>➕</span> Novo Usuário
+                            </button>
+                        </div>
+                        <div class="panel-body" style="padding: 0;">
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome Completo</th>
+                                            <th>Login de Acesso</th>
+                                            <th>E-mail</th>
+                                            <th>Perfil / Nível</th>
+                                            <th>Status</th>
+                                            <th>Último Acesso</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-usuarios"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- MODAL: PERFIL 360° COLABORADOR -->
+    <div id="modal-perfil-colaborador" class="modal-backdrop">
+        <div class="modal-box" style="max-width: 800px;">
+            <div class="modal-header">
+                <div class="modal-title">Prontuário Funcional e Ocupacional 360°</div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="perfil-colaborador-content"></div>
+        </div>
+    </div>
+
+    <!-- MODAL: NOVA ADMISSÃO -->
+    <div id="modal-novo-colaborador" class="modal-backdrop">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title">Nova Admissão de Colaborador (DP)</div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form onsubmit="App.salvarNovoColaborador(event)">
+                <div class="modal-body form-grid">
+                    <div class="form-group full-width">
+                        <label class="form-label">Nome Completo</label>
+                        <input type="text" name="nome" class="form-control" required placeholder="Ex: Fernanda Silva Souza">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">CPF</label>
+                        <input type="text" name="cpf" class="form-control" required placeholder="000.000.000-00">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Data de Nascimento</label>
+                        <input type="date" name="data_nascimento" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Setor</label>
+                        <select name="setor_id" id="novo-colab-setor" class="form-control" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Cargo</label>
+                        <select name="cargo_id" id="novo-colab-cargo" class="form-control" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Data de Admissão</label>
+                        <input type="date" name="data_admissao" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Salário Base (R$)</label>
+                        <input type="number" step="0.01" name="salario" class="form-control" required placeholder="3500.00">
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Regime de Contratação</label>
+                        <select name="tipo_contrato" class="form-control">
+                            <option value="CLT">CLT (Efetivo)</option>
+                            <option value="Estágio">Estágio</option>
+                            <option value="Menor Aprendiz">Menor Aprendiz</option>
+                            <option value="Temporário">Temporário</option>
+                            <option value="PJ">Prestador PJ</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-modal-close>Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Admissão</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: NOVA ENTREGA DE EPI -->
+    <div id="modal-entrega-epi" class="modal-backdrop">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title">Registrar Entrega de EPI (NR-06)</div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form onsubmit="App.salvarEntregaEpi(event)">
+                <div class="modal-body form-grid">
+                    <div class="form-group full-width">
+                        <label class="form-label">Colaborador</label>
+                        <select name="colaborador_id" id="entrega-epi-colab" class="form-control" required></select>
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Equipamento (EPI / C.A.)</label>
+                        <select name="epi_id" id="entrega-epi-id" class="form-control" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Quantidade</label>
+                        <input type="number" name="quantidade" class="form-control" value="1" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Data da Entrega</label>
+                        <input type="date" name="data_entrega" class="form-control" required>
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Motivo do Fornecimento</label>
+                        <select name="motivo" class="form-control">
+                            <option value="Admissão">Admissão</option>
+                            <option value="Troca Periódica">Troca Periódica</option>
+                            <option value="Substituição por Danos">Substituição por Danos</option>
+                            <option value="Perda">Perda / Extravio</option>
+                            <option value="Nova Função">Nova Função / Risco</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-modal-close>Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Registrar Entrega e Assinar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: NOVO ATESTADO MÉDICO -->
+    <div id="modal-novo-atestado" class="modal-backdrop">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title">Lançamento de Atestado Médico (DP & SST)</div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form onsubmit="App.salvarNovoAtestado(event)">
+                <div class="modal-body form-grid">
+                    <div class="form-group full-width">
+                        <label class="form-label">Colaborador</label>
+                        <select name="colaborador_id" id="atestado-colab" class="form-control" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Data Início</label>
+                        <input type="date" name="data_inicio" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Data Fim</label>
+                        <input type="date" name="data_fim" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Dias de Afastamento</label>
+                        <input type="number" name="dias_afastamento" class="form-control" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Código CID-10</label>
+                        <input type="text" name="cid10" class="form-control" placeholder="Ex: M54.5" required>
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Descrição da Doença (CID-10)</label>
+                        <input type="text" name="cid10_descricao" class="form-control" placeholder="Ex: Dor lombar baixa (Lumbago)">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Nome do Médico</label>
+                        <input type="text" name="medico_nome" class="form-control" required placeholder="Dr. Nome do Médico">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">CRM do Médico</label>
+                        <input type="text" name="medico_crm" class="form-control" required placeholder="Ex: 123456">
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Tipo de Afastamento</label>
+                        <select name="tipo_afastamento" class="form-control">
+                            <option value="Doença Comum">Doença Comum</option>
+                            <option value="Acidente de Trabalho">Acidente de Trabalho</option>
+                            <option value="Doença Ocupacional">Doença Ocupacional</option>
+                            <option value="Licença Maternidade">Licença Maternidade</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-modal-close>Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Registrar Atestado</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: VISUALIZADOR DE XML ESOCIAL -->
+    <div id="modal-xml-esocial" class="modal-backdrop">
+        <div class="modal-box" style="max-width: 850px;">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-xml-title">Visualizador de XML eSocial</div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <pre id="xml-code-content" style="background: #0f172a; color: #38bdf8; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 0.8rem; overflow-x: auto; max-height: 450px;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="btn-copiar-xml" class="btn btn-secondary">Copiar XML</button>
+                <button type="button" id="btn-download-xml" class="btn btn-primary">Baixar Arquivo .XML</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: GERADOR INTERATIVO DE ORDEM DE SERVIÇO (NR-01) -->
+    <div id="modal-gerador-os" class="modal-backdrop">
+        <div class="modal-box" style="max-width: 950px; max-height: 92vh;">
+            <div class="modal-header">
+                <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                    <span>📝</span> Gerador de Ordem de Serviço de Segurança (NR-01)
+                </div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Seção 1: Identificação do Trabalhador e Cargo -->
+                <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                    <div style="font-weight: 700; color: var(--accent); font-size: 0.85rem; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.05em;">
+                        1. Dados do Trabalhador e da Atividade
+                    </div>
+                    <div class="form-grid" style="grid-template-columns: repeat(3, 1fr); gap: 14px;">
+                        <div class="form-group full-width" style="grid-column: span 3;">
+                            <label class="form-label">Selecionar Colaborador Cadastrado</label>
+                            <select id="os-colab-select" class="form-control" onchange="App.onOsColaboradorChange(this.value)">
+                                <option value="">-- Preenchimento Manual / Novo Trabalhador --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Nome do Colaborador</label>
+                            <input type="text" id="os-nome" class="form-control" placeholder="Nome completo do trabalhador" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">CPF</label>
+                            <input type="text" id="os-cpf" class="form-control" placeholder="000.000.000-00">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Matrícula</label>
+                            <input type="text" id="os-matricula" class="form-control" placeholder="MAT-00000">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Função / Cargo</label>
+                            <select id="os-cargo-select" class="form-control" onchange="App.onOsCargoChange(this.value)">
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">CBO</label>
+                            <input type="text" id="os-cbo" class="form-control" placeholder="Código CBO">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Setor</label>
+                            <select id="os-setor-select" class="form-control">
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Data de Emissão</label>
+                            <input type="date" id="os-data-emissao" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Revisão da O.S.</label>
+                            <input type="text" id="os-revisao" class="form-control" value="01">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Empresa</label>
+                            <input type="text" id="os-empresa" class="form-control" value="MetalSul Estruturas Metálicas e Caldeiraria S/A" readonly style="background: #eee;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dica visual para o usuário -->
+                <div style="background: #e0f2fe; border-left: 4px solid #0284c7; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; font-size: 0.85rem; color: #0369a1; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.2rem;">💡</span>
+                    <div>
+                        <strong>Caixas de Edição Livres:</strong> Os textos regulamentares abaixo foram pré-preenchidos automaticamente com base no cargo e nos riscos do PGR da empresa. <strong>Você pode alterar, digitar, adicionar ou remover qualquer informação</strong> antes de imprimir o documento oficial.
+                    </div>
+                </div>
+
+                <!-- Seção 2: Caixas de Edição Textuais -->
+                <div style="display: flex; flex-direction: column; gap: 18px;">
+                    <div class="form-group">
+                        <label class="form-label" style="display: flex; justify-content: space-between;">
+                            <span>📋 Descrição Sumária das Atividades Desenvolvidas</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">Editável</span>
+                        </label>
+                        <textarea id="os-atividades" class="form-control" rows="3" placeholder="Descreva as tarefas e rotinas do trabalhador..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" style="display: flex; justify-content: space-between;">
+                            <span>⚠️ Riscos Ocupacionais da Função (PGR - NR-01)</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">Editável (Físicos, Químicos, Biológicos, Ergonômicos, Acidentes)</span>
+                        </label>
+                        <textarea id="os-riscos" class="form-control" rows="4" placeholder="Ex: Ruído contínuo, fumos metálicos de solda, radiação não ionizante, prensamento de membros..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" style="display: flex; justify-content: space-between;">
+                            <span>🧤 Equipamentos de Proteção Individual (EPIs) de Uso Obrigatório (NR-06)</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">Editável (EPIs e C.A.)</span>
+                        </label>
+                        <textarea id="os-epis" class="form-control" rows="3" placeholder="Ex: Calçado de segurança com bico de composite (CA 43123), Óculos de proteção ampla visão (CA 27552)..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" style="display: flex; justify-content: space-between;">
+                            <span>🛡️ Medidas Preventivas e Procedimentos Operacionais Seguros</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">Editável</span>
+                        </label>
+                        <textarea id="os-medidas" class="form-control" rows="3" placeholder="Ex: Inspecionar ferramentas antes do início; manter bancadas limpas (5S); ligar exaustor..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" style="display: flex; justify-content: space-between;">
+                            <span>🚫 Normas, Obrigações e Proibições Expressas</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">Editável</span>
+                        </label>
+                        <textarea id="os-proibicoes" class="form-control" rows="3" placeholder="Ex: Proibido operar sem autorização; proibido remover proteções de máquinas; proibido fumar na fábrica..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" style="display: flex; justify-content: space-between;">
+                            <span>🚨 Procedimentos em Caso de Acidente ou Emergência</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">Editável</span>
+                        </label>
+                        <textarea id="os-procedimentos-acidente" class="form-control" rows="2" placeholder="Ex: Paralisar as atividades imediatamente, acionar a brigada de emergência e o SESMT, procurar atendimento médico..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" style="display: flex; justify-content: space-between;">
+                            <span>⚖️ Punições Disciplinares pelo Descumprimento (Art. 158 da CLT)</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">Editável</span>
+                        </label>
+                        <textarea id="os-punicoes" class="form-control" rows="2" placeholder="Ex: Advertência verbal, advertência por escrito, suspensão disciplinar e rescisão por justa causa."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: space-between;">
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn btn-outline" onclick="App.restaurarPadraoOs()">🔄 Restaurar Padrão da Função</button>
+                    <button type="button" class="btn btn-secondary" onclick="App.salvarModeloOs()">💾 Salvar Modelo para o Cargo</button>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="btn btn-secondary" data-modal-close>Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="App.imprimirOsCustomizada()" style="padding: 10px 22px; font-size: 0.95rem;">
+                        🖨️ Gerar e Imprimir O.S. (A4)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CADASTRO / EDIÇÃO DE USUÁRIO -->
+    <div id="modal-usuario" class="modal-backdrop">
+        <div class="modal-box" style="max-width: 580px;">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-usuario-title">➕ Novo Usuário do Sistema</div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form onsubmit="App.salvarUsuario(event)">
+                <input type="hidden" id="usuario-id">
+                <div class="modal-body form-grid">
+                    <div class="form-group full-width">
+                        <label class="form-label">Nome Completo</label>
+                        <input type="text" id="usuario-nome" class="form-control" required placeholder="Ex: Maria Fernandes Oliveira">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Login de Acesso</label>
+                        <input type="text" id="usuario-login" class="form-control" required placeholder="Ex: maria.folha">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">E-mail Profissional</label>
+                        <input type="email" id="usuario-email" class="form-control" required placeholder="maria@empresa.com">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" id="label-usuario-senha">Senha de Acesso</label>
+                        <input type="password" id="usuario-senha" class="form-control" placeholder="Mínimo 6 caracteres">
+                        <small id="help-usuario-senha" style="font-size: 0.72rem; color: var(--text-muted); display: none;">Deixe em branco para manter a senha atual.</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Perfil de Acesso</label>
+                        <select id="usuario-perfil" class="form-control" required>
+                            <option value="Administrador">Administrador Geral (Acesso Total)</option>
+                            <option value="Gestor DP">Gestor DP (Folha, Admissão, Férias)</option>
+                            <option value="Técnico SST">Técnico SST (PGR, PCMSO, EPIs, CAT)</option>
+                            <option value="Visualizador">Visualizador (Apenas Consulta)</option>
+                        </select>
+                    </div>
+                    <div class="form-group full-width" style="margin-top: 6px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 500;">
+                            <input type="checkbox" id="usuario-ativo" checked style="width: 18px; height: 18px; accent-color: var(--primary);">
+                            <span>Usuário ativo e autorizado a realizar login</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-modal-close>Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btn-salvar-usuario">Salvar Usuário</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CONTAINER DE IMPRESSÃO (A4 REGULAMENTAR) -->
+    <div id="print-container"></div>
+
+    <!-- CONTAINER DE NOTIFICAÇÕES (TOAST) -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- SCRIPTS -->
+    <script src="/js/print.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>

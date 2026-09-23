@@ -1,0 +1,13 @@
+services:
+  safework:
+    build: .
+    container_name: safework-rh-sst
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      - DB_PATH=/app/data/safework.db
+    volumes:
+      - ./data:/app/data

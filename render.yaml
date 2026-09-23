@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: safework-rh-sst
+    env: docker
+    plan: free
+    region: ohio
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: DB_PATH
+        value: /app/data/safework.db
+
