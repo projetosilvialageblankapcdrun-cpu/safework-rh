@@ -29,7 +29,28 @@ const App = {
         }
 
         await this.loadInitialCache();
-        await this.switchTab('dashboard');
+        const startTab = this.currentUser.perfil === 'Colaborador / Aluno' ? 'ead' : 'dashboard';
+        await this.switchTab(startTab);
+    },
+
+    setupModalClosers() {
+        document.querySelectorAll('.modal-close, [data-modal-close]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const modal = btn.closest('.modal-backdrop');
+                if (modal) modal.classList.remove('open');
+            });
+        });
+        document.querySelectorAll('.modal-backdrop').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.classList.remove('open');
+            });
+        });
+        const portal = document.getElementById('portal-denuncias');
+        if (portal) {
+            portal.addEventListener('click', (e) => {
+                if (e.target === portal) this.fecharPortalDenuncias();
+            });
+        }
     },
 
     // AUTENTICAÇÃO E SESSÃO
@@ -75,6 +96,8 @@ const App = {
         const avatarEl = document.getElementById('user-topbar-avatar');
         const navCatAdmin = document.getElementById('nav-cat-admin');
         const navItemUsuarios = document.getElementById('nav-item-usuarios');
+        const navItemDenuncias = document.getElementById('nav-item-denuncias');
+        const eadInstructorActions = document.getElementById('ead-instructor-actions');
 
         if (nomeEl) nomeEl.innerText = this.currentUser.nome;
         if (perfilEl) perfilEl.innerText = this.currentUser.perfil;
@@ -84,10 +107,20 @@ const App = {
             avatarEl.innerText = initials;
         }
 
-        // Permissão: Apenas Administrador pode ver a aba de Gestão de Usuários
         const isAdmin = this.currentUser.perfil === 'Administrador';
-        if (navCatAdmin) navCatAdmin.style.display = isAdmin ? 'block' : 'none';
+        const isSst = this.currentUser.perfil === 'Técnico SST';
+        const isInstrutor = this.currentUser.perfil === 'Instrutor / Professor';
+        const isAluno = this.currentUser.perfil === 'Colaborador / Aluno';
+
+        // Admin e SST visualizam canal de denúncias interno
+        if (navCatAdmin) navCatAdmin.style.display = (isAdmin || isSst) ? 'block' : 'none';
         if (navItemUsuarios) navItemUsuarios.style.display = isAdmin ? 'flex' : 'none';
+        if (navItemDenuncias) navItemDenuncias.style.display = (isAdmin || isSst) ? 'flex' : 'none';
+
+        // Botões de criação de curso e matrícula visíveis para Admin e Instrutores
+        if (eadInstructorActions) {
+            eadInstructorActions.style.display = (isAdmin || isInstrutor) ? 'flex' : 'none';
+        }
     },
 
     preencherCredencialDemo(login, senha) {
@@ -284,7 +317,9 @@ const App = {
             'treinamentos': ['Treinamentos de NRs', 'Capacitações obrigatórias de NRs, validade, reciclagem e certificados'],
             'acidentes': ['Acidentes de Trabalho & CAT', 'Registro de acidentes, árvore de causas e emissão oficial de CAT'],
             'esocial': ['Central eSocial & PPP', 'Validação e emissão de XMLs (S-2210, S-2220, S-2240) e PPP Eletrônico'],
-            'usuarios': ['Gestão de Usuários & Acessos', 'Controle de contas, senhas e perfis de permissão do sistema']
+            'usuarios': ['Gestão de Usuários & Acessos', 'Controle de contas, senhas e perfis de permissão do sistema'],
+            'ead': ['Academia EAD & Treinamentos Normativos (NR-01 Anexo II)', 'Videoaulas integradas, avaliações práticas, mural de avisos, canal Fale com o Professor e certificados oficiais'],
+            'denuncias': ['Canal de Denúncias & Linha Ética (CIPA+A / Lei 14.457/22)', 'Comitê de Ética, apuração confidencial de assédio sexual, moral e irregularidades']
         };
 
         if (titulos[tabName]) {
@@ -335,6 +370,12 @@ const App = {
                 break;
             case 'usuarios':
                 await this.renderUsuarios();
+                break;
+            case 'ead':
+                await this.renderEad();
+                break;
+            case 'denuncias':
+                await this.renderDenuncias();
                 break;
         }
     },
@@ -1253,6 +1294,1240 @@ const App = {
             await this.renderUsuarios();
         } catch (err) {
             // Toast com erro já exibido por api()
+        }
+    },
+
+    // ====================================================================
+    // 12. ACADEMIA CORPORATIVA & TREINAMENTOS EAD (NR-01 ANEXO II)
+    // ====================================================================
+    eadCurrentCurso: null,
+    eadCurrentAula: null,
+    eadMatriculaAtiva: null,
+    eadAulasConcluidas: [],
+
+    async renderEad() {
+        try {
+            const grid = document.getElementById('ead-cursos-grid');
+            if (!grid) return;
+            grid.innerHTML = '<div style="padding: 20px; color: #64748b;">Carregando treinamentos EAD...</div>';
+
+            const [cursos, matriculas] = await Promise.all([
+                this.api('/ead/cursos'),
+                this.api('/ead/meus-cursos').catch(() => [])
+            ]);
+
+            if (!cursos || cursos.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1; padding: 40px; text-align: center; background: #fff; border-radius: 12px; border: 1px dashed #cbd5e1;">
+                        <div style="font-size: 2.5rem; margin-bottom: 10px;">🎓</div>
+                        <h3 style="font-size: 1.1rem; color: #1e293b; margin-bottom: 6px;">Nenhum treinamento EAD disponível no momento</h3>
+                        <p style="color: #64748b; font-size: 0.88rem; margin-bottom: 16px;">Instrutores podem cadastrar videoaulas e provas práticas em conformidade com a NR-01 Anexo II.</p>
+                        <button class="btn btn-primary" onclick="App.abrirModalNovoCurso()">➕ Cadastrar Primeiro Curso</button>
+                    </div>
+                `;
+                return;
+            }
+
+            // Mapear matrículas por curso_id
+            const matMap = {};
+            if (Array.isArray(matriculas)) {
+                matriculas.forEach(m => { matMap[m.curso_id] = m; });
+            }
+
+            const isAdminOrProf = this.currentUser && (this.currentUser.perfil === 'Administrador' || this.currentUser.perfil === 'Instrutor / Professor');
+
+            grid.innerHTML = cursos.map(c => {
+                const mat = matMap[c.id];
+                const pct = mat ? (mat.progresso_pct || 0) : 0;
+                const statusMat = mat ? (mat.status === 'Aprovado' ? '✅ Concluído & Certificado' : (pct > 0 ? `Em Andamento (${pct}%)` : 'Não Iniciado')) : 'Disponível';
+                const statusBadgeBg = mat && mat.status === 'Aprovado' ? '#dcfce7' : (pct > 0 ? '#e0f2fe' : '#f1f5f9');
+                const statusBadgeColor = mat && mat.status === 'Aprovado' ? '#16a34a' : (pct > 0 ? '#0284c7' : '#64748b');
+
+                return `
+                    <div class="ead-course-card">
+                        <div class="ead-course-header">
+                            <span class="ead-course-badge">${c.categoria || 'SST'}</span>
+                            <span class="ead-course-hours">⏱️ ${c.carga_horaria}h</span>
+                        </div>
+                        <div class="ead-course-body">
+                            <h3 class="ead-course-title">${c.titulo}</h3>
+                            <p class="ead-course-desc">${c.descricao || 'Treinamento de capacitação em Segurança e Saúde do Trabalho.'}</p>
+                            
+                            <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #64748b; margin-bottom: 12px;">
+                                <span>👨‍🏫 Instrutor: <strong style="color: #334155;">${c.instrutor_nome || 'SESMT MetalSul'}</strong></span>
+                            </div>
+
+                            <div style="margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 600; margin-bottom: 4px;">
+                                    <span style="color: #64748b;">Progresso do Aluno</span>
+                                    <span style="color: #0284c7;">${pct}%</span>
+                                </div>
+                                <div class="ead-progress-bar">
+                                    <div class="ead-progress-fill" style="width: ${pct}%;"></div>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.76rem; color: #64748b; margin-bottom: 14px;">
+                                <span>📚 ${c.total_aulas || 0} Aulas</span>
+                                <span style="background: ${statusBadgeBg}; color: ${statusBadgeColor}; padding: 3px 8px; border-radius: 999px; font-weight: 700;">${statusMat}</span>
+                            </div>
+
+                            <div style="display: flex; gap: 8px;">
+                                <button type="button" class="btn btn-primary" style="flex: 1; padding: 9px; font-size: 0.88rem; justify-content: center;" onclick="App.abrirCursoPlayer(${c.id})">
+                                    ▶️ Acessar Sala de Aula
+                                </button>
+                                ${isAdminOrProf ? `
+                                    <button type="button" class="btn btn-outline" style="padding: 9px 12px;" title="Matricular colaborador neste curso" onclick="App.abrirModalMatricular(${c.id})">
+                                        👥
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch (err) {
+            console.error('Erro ao renderizar EAD:', err);
+            const grid = document.getElementById('ead-cursos-grid');
+            if (grid) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1; padding: 30px; text-align: center; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 10px; color: #b91c1c;">
+                        <div style="font-size: 1.8rem; margin-bottom: 8px;">⚠️</div>
+                        <div style="font-weight: 700; margin-bottom: 6px;">Não foi possível carregar os treinamentos EAD</div>
+                        <div style="font-size: 0.85rem; margin-bottom: 12px;">${err.message || 'Erro de conexão com o servidor'}</div>
+                        <button class="btn btn-primary" onclick="App.renderEad()">🔄 Tentar Novamente</button>
+                    </div>
+                `;
+            }
+        }
+    },
+
+    async abrirCursoPlayer(cursoId) {
+        try {
+            const [curso, mural, duvidas, matriculas] = await Promise.all([
+                this.api(`/ead/cursos/${cursoId}`),
+                this.api(`/ead/cursos/${cursoId}/mural`).catch(() => []),
+                this.api(`/ead/cursos/${cursoId}/duvidas`).catch(() => []),
+                this.api('/ead/meus-cursos').catch(() => [])
+            ]);
+
+            this.eadCurrentCurso = curso;
+            let mat = Array.isArray(matriculas) ? matriculas.find(m => m.curso_id === cursoId) : null;
+
+            // Se for admin ou instrutor sem matrícula, cria matrícula de visualização automática
+            if (!mat && (this.currentUser.perfil === 'Administrador' || this.currentUser.perfil === 'Instrutor / Professor')) {
+                try {
+                    const novaMat = await this.api('/ead/matriculas', 'POST', { curso_id: cursoId });
+                    mat = novaMat.matricula;
+                } catch (e) {
+                    mat = { id: 0, status: 'Instrutor', progresso_pct: 0 };
+                }
+            }
+
+            this.eadMatriculaAtiva = mat;
+
+            // Buscar aulas concluídas desta matrícula
+            if (mat && mat.id) {
+                const prog = await this.api(`/ead/matriculas/${mat.id}/progresso`).catch(() => ({ aulasConcluidas: [] }));
+                this.eadAulasConcluidas = (prog && prog.aulasConcluidas) ? prog.aulasConcluidas : [];
+            } else {
+                this.eadAulasConcluidas = [];
+            }
+
+            // Atualizar cabeçalho da sala de aula
+            document.getElementById('player-categoria-badge').innerText = curso.categoria || 'NR';
+            document.getElementById('player-curso-titulo').innerText = curso.titulo;
+            document.getElementById('player-instrutor-nome').innerText = curso.instrutor_nome || 'SESMT';
+            document.getElementById('player-carga-horaria').innerText = curso.carga_horaria;
+
+            const pct = mat ? (mat.progresso_pct || 0) : 0;
+            document.getElementById('player-progresso-bar').style.width = `${pct}%`;
+            document.getElementById('player-progresso-txt').innerText = `${pct}%`;
+
+            // Construir playlist de aulas na barra lateral
+            const playlistEl = document.getElementById('player-aulas-playlist');
+            const totalCountEl = document.getElementById('player-aulas-total-count');
+            playlistEl.innerHTML = '';
+            totalCountEl.innerText = `${(curso.aulas || []).length} Aulas`;
+
+            if (curso.aulas && curso.aulas.length > 0) {
+                curso.aulas.forEach((aula, idx) => {
+                    const concluida = this.eadAulasConcluidas.includes(aula.id);
+                    const item = document.createElement('div');
+                    item.className = `ead-playlist-item ${idx === 0 ? 'active' : ''} ${concluida ? 'completed' : ''}`;
+                    item.id = `playlist-item-${aula.id}`;
+                    item.onclick = () => App.carregarAulaPlayer(aula.id);
+                    item.innerHTML = `
+                        <div class="ead-playlist-check">${concluida ? '✅' : '⚪'}</div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 0.72rem; color: #64748b; font-weight: 700;">AULA ${idx + 1} • ${aula.duracao_minutos || 15} MIN</div>
+                            <div style="font-size: 0.85rem; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${aula.titulo}</div>
+                        </div>
+                    `;
+                    playlistEl.appendChild(item);
+                });
+
+                // Carregar primeira aula
+                this.carregarAulaPlayer(curso.aulas[0].id);
+            } else {
+                playlistEl.innerHTML = '<div style="padding: 16px; color: #64748b; font-size: 0.85rem;">Nenhuma aula cadastrada ainda.</div>';
+                document.getElementById('player-video-wrapper').innerHTML = '<div style="padding: 40px; text-align: center; color: #94a3b8;">Nenhum vídeo disponível para este curso.</div>';
+            }
+
+            // Renderizar Mural e Dúvidas
+            this.renderPlayerMural(mural);
+            this.renderPlayerDuvidas(duvidas);
+            this.atualizarCardStatusProva();
+
+            // Abrir modal
+            document.getElementById('modal-curso-player').classList.add('open');
+        } catch (err) {
+            console.error('Erro ao abrir sala de aula EAD:', err);
+            this.showToast('Não foi possível carregar a sala de aula.', 'danger');
+        }
+    },
+
+    carregarAulaPlayer(aulaId) {
+        if (!this.eadCurrentCurso || !this.eadCurrentCurso.aulas) return;
+        const aula = this.eadCurrentCurso.aulas.find(a => a.id === aulaId);
+        if (!aula) return;
+
+        this.eadCurrentAula = aula;
+
+        // Atualizar destaque na playlist
+        document.querySelectorAll('.ead-playlist-item').forEach(el => el.classList.remove('active'));
+        const activeItem = document.getElementById(`playlist-item-${aulaId}`);
+        if (activeItem) activeItem.classList.add('active');
+
+        // Atualizar títulos
+        const idx = this.eadCurrentCurso.aulas.findIndex(a => a.id === aulaId);
+        document.getElementById('player-aula-ordem').innerText = `Aula ${idx + 1} de ${this.eadCurrentCurso.aulas.length}`;
+        document.getElementById('player-aula-titulo').innerText = aula.titulo;
+        document.getElementById('player-aula-conteudo').innerText = aula.conteudo_texto || 'Assista à videoaula acima com atenção e avance nas etapas para liberar a avaliação prática e seu certificado.';
+
+        // Renderizar player de vídeo
+        const videoWrapper = document.getElementById('player-video-wrapper');
+        const url = (aula.url_video || '').trim();
+        const tipo = (aula.tipo_video || '').toLowerCase();
+
+        if (tipo === 'upload' || url.endsWith('.mp4') || url.endsWith('.webm')) {
+            videoWrapper.innerHTML = `
+                <video controls autoplay style="width: 100%; height: 100%; max-height: 480px; background: #000; border-radius: 8px;" src="${url}">
+                    Seu navegador não suporta a reprodução direta deste formato de vídeo.
+                </video>
+            `;
+        } else if (tipo === 'youtube' || url.includes('youtube.com') || url.includes('youtu.be')) {
+            let videoId = '';
+            if (url.includes('youtu.be/')) {
+                videoId = url.split('youtu.be/')[1].split('?')[0];
+            } else if (url.includes('v=')) {
+                videoId = url.split('v=')[1].split('&')[0];
+            } else if (url.includes('embed/')) {
+                videoId = url.split('embed/')[1].split('?')[0];
+            }
+            videoWrapper.innerHTML = `
+                <iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0" 
+                    title="${aula.titulo}" 
+                    style="width: 100%; height: 420px; border: none; border-radius: 8px;" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen>
+                </iframe>
+            `;
+        } else if (tipo === 'vimeo' || url.includes('vimeo.com')) {
+            const vimeoId = url.replace(/[^0-9]/g, '');
+            videoWrapper.innerHTML = `
+                <iframe src="https://player.vimeo.com/video/${vimeoId}?autoplay=1" 
+                    title="${aula.titulo}" 
+                    style="width: 100%; height: 420px; border: none; border-radius: 8px;" 
+                    allow="autoplay; fullscreen; picture-in-picture" 
+                    allowfullscreen>
+                </iframe>
+            `;
+        } else if (url) {
+            videoWrapper.innerHTML = `
+                <iframe src="${url}" 
+                    title="${aula.titulo}" 
+                    style="width: 100%; height: 420px; border: none; border-radius: 8px;" 
+                    allowfullscreen>
+                </iframe>
+            `;
+        } else {
+            videoWrapper.innerHTML = `
+                <div style="height: 280px; display: flex; align-items: center; justify-content: center; flex-direction: column; background: #1e293b; color: #fff; border-radius: 8px;">
+                    <div style="font-size: 2.5rem; margin-bottom: 8px;">🎥</div>
+                    <div style="font-size: 1rem; font-weight: 600;">Esta aula é baseada em leitura e procedimentos teóricos.</div>
+                    <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 4px;">Revise as diretrizes da NR abaixo e clique em Concluir.</div>
+                </div>
+            `;
+        }
+
+        // Atualizar estado do botão de conclusão
+        const concluida = this.eadAulasConcluidas.includes(aulaId);
+        const btnConcluir = document.getElementById('btn-concluir-aula');
+        if (concluida) {
+            btnConcluir.innerText = '✅ Aula Concluída (Rever)';
+            btnConcluir.className = 'btn btn-outline';
+        } else {
+            btnConcluir.innerText = '✅ Concluir esta Aula e Avançar';
+            btnConcluir.className = 'btn btn-primary';
+        }
+    },
+
+    async marcarAulaAtualConcluida() {
+        if (!this.eadCurrentAula || !this.eadMatriculaAtiva) return;
+        const matId = this.eadMatriculaAtiva.id;
+        const aulaId = this.eadCurrentAula.id;
+
+        try {
+            const res = await this.api(`/ead/matriculas/${matId}/aulas/${aulaId}/concluir`, 'POST');
+            if (res.progresso) {
+                const pct = res.progresso.progresso_pct || 0;
+                document.getElementById('player-progresso-bar').style.width = `${pct}%`;
+                document.getElementById('player-progresso-txt').innerText = `${pct}%`;
+            }
+
+            if (!this.eadAulasConcluidas.includes(aulaId)) {
+                this.eadAulasConcluidas.push(aulaId);
+            }
+
+            // Atualizar ícone na playlist
+            const item = document.getElementById(`playlist-item-${aulaId}`);
+            if (item) {
+                item.classList.add('completed');
+                const checkEl = item.querySelector('.ead-playlist-check');
+                if (checkEl) checkEl.innerText = '✅';
+            }
+
+            // Avançar para próxima aula se houver
+            const aulas = this.eadCurrentCurso.aulas || [];
+            const curIdx = aulas.findIndex(a => a.id === aulaId);
+
+            if (curIdx < aulas.length - 1) {
+                this.showToast('Aula concluída com sucesso! Avançando para a próxima...', 'success');
+                this.carregarAulaPlayer(aulas[curIdx + 1].id);
+            } else {
+                this.showToast('🎉 Parabéns! Você concluiu 100% das aulas! A Prova Prática foi liberada.', 'success');
+                this.atualizarCardStatusProva();
+                this.alternarTabPlayer('prova');
+            }
+
+            await this.renderEad();
+        } catch (err) {
+            console.error('Erro ao concluir aula:', err);
+        }
+    },
+
+    alternarTabPlayer(tab) {
+        ['mural', 'duvidas', 'prova'].forEach(t => {
+            const navBtn = document.getElementById(`player-nav-${t}`);
+            const pane = document.getElementById(`player-tab-${t}`);
+            if (navBtn) navBtn.classList.toggle('active', t === tab);
+            if (pane) pane.style.display = (t === tab) ? 'block' : 'none';
+        });
+    },
+
+    renderPlayerMural(muralList) {
+        const listEl = document.getElementById('player-mural-list');
+        const formWrap = document.getElementById('player-mural-form-wrapper');
+
+        const isAdminOrProf = this.currentUser && (this.currentUser.perfil === 'Administrador' || this.currentUser.perfil === 'Instrutor / Professor');
+        if (formWrap) {
+            if (isAdminOrProf) {
+                formWrap.innerHTML = `
+                    <form onsubmit="App.publicarMuralEad(event)" style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px;">
+                        <div style="font-weight: 700; font-size: 0.88rem; color: #1e293b; margin-bottom: 8px;">📢 Publicar Novo Comunicado no Mural:</div>
+                        <div class="form-grid" style="gap: 8px;">
+                            <div class="form-group full-width">
+                                <input type="text" id="mural-input-titulo" class="form-control" placeholder="Título do Comunicado (Ex: Dica de Simulado, Cronograma...)" required>
+                            </div>
+                            <div class="form-group full-width">
+                                <textarea id="mural-input-msg" class="form-control" rows="2" placeholder="Mensagem para todos os colaboradores matriculados..." required></textarea>
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="mural-input-importante" style="accent-color: #d97706;"> Marcar como Comunicado Importante / Urgente
+                            </label>
+                            <button type="submit" class="btn btn-primary" style="padding: 6px 16px; font-size: 0.85rem;">Publicar Aviso</button>
+                        </div>
+                    </form>
+                `;
+            } else {
+                formWrap.innerHTML = '';
+            }
+        }
+
+        if (!muralList || muralList.length === 0) {
+            listEl.innerHTML = '<div style="padding: 16px; color: #64748b; font-size: 0.85rem;">Nenhum comunicado no mural até o momento.</div>';
+            return;
+        }
+
+        listEl.innerHTML = muralList.map(m => `
+            <div class="ead-mural-card ${m.aviso_importante ? 'urgent' : ''}">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+                    <div style="font-weight: 700; font-size: 0.92rem; color: #1e293b;">
+                        ${m.aviso_importante ? '⚠️ ' : '📌 '}${m.titulo}
+                    </div>
+                    <span style="font-size: 0.75rem; color: #64748b;">${new Date(m.created_at || Date.now()).toLocaleDateString('pt-BR')}</span>
+                </div>
+                <div style="font-size: 0.85rem; color: #475569; line-height: 1.5; margin-bottom: 6px;">${m.mensagem}</div>
+                <div style="font-size: 0.75rem; color: #0284c7; font-weight: 600;">Postado por: ${m.autor_nome || 'Instrutor'}</div>
+            </div>
+        `).join('');
+    },
+
+    async publicarMuralEad(e) {
+        if (e) e.preventDefault();
+        if (!this.eadCurrentCurso) return;
+        const cursoId = this.eadCurrentCurso.id;
+        const titulo = document.getElementById('mural-input-titulo').value.trim();
+        const mensagem = document.getElementById('mural-input-msg').value.trim();
+        const aviso_importante = document.getElementById('mural-input-importante')?.checked ? 1 : 0;
+
+        try {
+            await this.api(`/ead/cursos/${cursoId}/mural`, 'POST', { titulo, mensagem, aviso_importante });
+            this.showToast('Comunicado publicado com sucesso no mural!', 'success');
+            const muralAtualizado = await this.api(`/ead/cursos/${cursoId}/mural`);
+            this.renderPlayerMural(muralAtualizado);
+        } catch (err) {
+            console.error('Erro ao publicar mural:', err);
+        }
+    },
+
+    renderPlayerDuvidas(duvidasList) {
+        const listEl = document.getElementById('player-duvidas-list');
+        const countEl = document.getElementById('player-duvidas-count');
+        if (countEl) countEl.innerText = duvidasList ? duvidasList.length : 0;
+
+        if (!duvidasList || duvidasList.length === 0) {
+            listEl.innerHTML = '<div style="padding: 16px; color: #64748b; font-size: 0.85rem;">Nenhuma dúvida enviada ainda. Faça uma pergunta abaixo diretamente ao professor!</div>';
+            return;
+        }
+
+        const isAdminOrProf = this.currentUser && (this.currentUser.perfil === 'Administrador' || this.currentUser.perfil === 'Instrutor / Professor');
+
+        listEl.innerHTML = duvidasList.map(d => `
+            <div class="ead-duvida-card">
+                <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: #64748b; margin-bottom: 4px;">
+                    <span><strong>${d.aluno_nome || 'Colaborador'}</strong> ${d.aula_titulo ? `(Aula: ${d.aula_titulo})` : ''}</span>
+                    <span>${new Date(d.created_at || Date.now()).toLocaleDateString('pt-BR')}</span>
+                </div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: #1e293b; margin-bottom: 8px;">
+                    ❓ "${d.pergunta}"
+                </div>
+
+                ${d.resposta ? `
+                    <div style="background: #f0fdf4; border-left: 3px solid #22c55e; padding: 10px; border-radius: 4px; font-size: 0.85rem; color: #166534;">
+                        <div style="font-weight: 700; margin-bottom: 2px;">👨‍🏫 Resposta do Professor (${d.professor_nome || 'Instrutor'}):</div>
+                        <div>${d.resposta}</div>
+                    </div>
+                ` : `
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: #fffbeb; padding: 8px 12px; border-radius: 4px;">
+                        <span style="font-size: 0.78rem; color: #b45309; font-weight: 600;">⏳ Aguardando resposta do instrutor</span>
+                        ${isAdminOrProf ? `
+                            <button type="button" class="btn btn-outline" style="font-size: 0.78rem; padding: 4px 10px;" onclick="App.responderDuvidaEad(${d.id})">
+                                Responder Colaborador
+                            </button>
+                        ` : ''}
+                    </div>
+                `}
+            </div>
+        `).join('');
+    },
+
+    async enviarDuvidaEad(e) {
+        if (e) e.preventDefault();
+        if (!this.eadCurrentCurso) return;
+        const cursoId = this.eadCurrentCurso.id;
+        const aulaId = this.eadCurrentAula ? this.eadCurrentAula.id : null;
+        const input = document.getElementById('input-nova-duvida');
+        const pergunta = input.value.trim();
+
+        if (!pergunta) return;
+
+        try {
+            await this.api(`/ead/cursos/${cursoId}/duvidas`, 'POST', { pergunta, aula_id: aulaId });
+            input.value = '';
+            this.showToast('Dúvida enviada ao professor com sucesso!', 'success');
+            const duvidasAtualizadas = await this.api(`/ead/cursos/${cursoId}/duvidas`);
+            this.renderPlayerDuvidas(duvidasAtualizadas);
+        } catch (err) {
+            console.error('Erro ao enviar dúvida:', err);
+        }
+    },
+
+    async responderDuvidaEad(duvidaId) {
+        const resposta = prompt('Digite sua resposta técnica e pedagógica para o colaborador:');
+        if (!resposta || !resposta.trim()) return;
+
+        try {
+            await this.api(`/ead/duvidas/${duvidaId}/resposta`, 'POST', { resposta: resposta.trim() });
+            this.showToast('Resposta registrada com sucesso!', 'success');
+            const duvidasAtualizadas = await this.api(`/ead/cursos/${this.eadCurrentCurso.id}/duvidas`);
+            this.renderPlayerDuvidas(duvidasAtualizadas);
+        } catch (err) {
+            console.error('Erro ao responder dúvida:', err);
+        }
+    },
+
+    atualizarCardStatusProva() {
+        const card = document.getElementById('player-prova-status-card');
+        if (!card || !this.eadCurrentCurso) return;
+
+        const mat = this.eadMatriculaAtiva;
+        const curso = this.eadCurrentCurso;
+        const totalAulas = (curso.aulas || []).length;
+        const concluidas = this.eadAulasConcluidas.length;
+        const todasConcluidas = totalAulas > 0 && concluidas >= totalAulas;
+
+        if (mat && mat.status === 'Aprovado') {
+            card.innerHTML = `
+                <div style="font-size: 3rem; margin-bottom: 8px;">🏆</div>
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: #16a34a; margin-bottom: 6px;">
+                    Treinamento Concluído com Sucesso!
+                </h3>
+                <p style="font-size: 0.9rem; color: #475569; max-width: 500px; margin: 0 auto 16px auto;">
+                    Você foi aprovado com nota <strong>${mat.nota_final || 100}%</strong>. Seu certificado oficial foi emitido em total conformidade com a <strong>NR-01 Anexo II</strong>.
+                </p>
+                <div style="display: flex; justify-content: center; gap: 12px;">
+                    <button type="button" class="btn btn-primary" style="padding: 10px 22px; font-weight: 700; font-size: 0.95rem;" onclick="App.imprimirCertificadoEad(${mat.id})">
+                        🖨️ Imprimir Certificado Oficial (A4)
+                    </button>
+                </div>
+            `;
+        } else if (todasConcluidas) {
+            card.innerHTML = `
+                <div style="font-size: 3rem; margin-bottom: 8px;">📝</div>
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
+                    Avaliação Prática de Conhecimento Pronta
+                </h3>
+                <p style="font-size: 0.9rem; color: #475569; max-width: 520px; margin: 0 auto 18px auto;">
+                    Você assistiu a todas as ${totalAulas} aulas normativas. Para obter o seu certificado, responda às questões práticas. A nota mínima para aprovação é <strong>${curso.nota_minima || 70}%</strong>.
+                </p>
+                <button type="button" class="btn btn-primary" style="padding: 11px 26px; font-weight: 700; font-size: 1rem;" onclick="App.abrirProvaEad(${curso.id})">
+                    🚀 Iniciar Avaliação Prática Agora
+                </button>
+            `;
+        } else {
+            card.innerHTML = `
+                <div style="font-size: 3rem; margin-bottom: 8px;">🔒</div>
+                <h3 style="font-size: 1.15rem; font-weight: 700; color: #64748b; margin-bottom: 6px;">
+                    Avaliação Bloqueada (NR-01 Anexo II)
+                </h3>
+                <p style="font-size: 0.88rem; color: #64748b; max-width: 500px; margin: 0 auto 12px auto;">
+                    A norma regulamentadora exige a conclusão integral da carga horária e videoaulas antes da aplicação da prova prática.
+                </p>
+                <div style="font-weight: 700; color: #0284c7; font-size: 0.9rem;">
+                    Progresso Atual: ${concluidas} de ${totalAulas} aulas concluídas
+                </div>
+            `;
+        }
+    },
+
+    async abrirProvaEad(cursoId) {
+        try {
+            const avaliacao = await this.api(`/ead/cursos/${cursoId}/avaliacao`);
+            if (!avaliacao || !avaliacao.questoes || avaliacao.questoes.length === 0) {
+                this.showToast('Nenhuma questão cadastrada para este treinamento.', 'warning');
+                return;
+            }
+
+            document.getElementById('prova-curso-id').value = cursoId;
+            document.getElementById('prova-matricula-id').value = this.eadMatriculaAtiva ? this.eadMatriculaAtiva.id : '';
+            document.getElementById('prova-titulo').innerText = `📝 Avaliação Prática: ${avaliacao.titulo}`;
+
+            const questoesContainer = document.getElementById('prova-questoes-container');
+            questoesContainer.innerHTML = avaliacao.questoes.map((q, idx) => `
+                <div class="ead-question-box" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                    <div style="font-weight: 700; font-size: 0.95rem; color: #1e293b; margin-bottom: 12px;">
+                        ${idx + 1}. ${q.enunciado}
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        ${(q.opcoes || []).map((op, oIdx) => {
+                            const letra = ['A', 'B', 'C', 'D', 'E'][oIdx];
+                            return `
+                                <label style="display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 0.88rem; transition: background 0.15s;">
+                                    <input type="radio" name="questao_${q.id}" value="${letra}" required style="margin-top: 3px; accent-color: #0284c7;">
+                                    <span><strong>${letra})</strong> ${op}</span>
+                                </label>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('modal-prova-ead').classList.add('open');
+        } catch (err) {
+            console.error('Erro ao abrir prova:', err);
+            this.showToast('Não foi possível carregar as questões da prova.', 'danger');
+        }
+    },
+
+    async submeterProvaEad(e) {
+        if (e) e.preventDefault();
+        const matId = document.getElementById('prova-matricula-id').value;
+        const cursoId = document.getElementById('prova-curso-id').value;
+
+        // Coletar respostas
+        const form = e.target;
+        const formData = new FormData(form);
+        const respostas = [];
+
+        for (let [chave, valor] of formData.entries()) {
+            if (chave.startsWith('questao_')) {
+                const questao_id = parseInt(chave.replace('questao_', ''), 10);
+                respostas.push({ questao_id, resposta_aluno: valor });
+            }
+        }
+
+        try {
+            const btn = document.getElementById('btn-finalizar-prova');
+            btn.disabled = true;
+            btn.innerText = 'Processando e Corrigindo...';
+
+            const resultado = await this.api(`/ead/matriculas/${matId}/avaliacao`, 'POST', { respostas });
+
+            document.getElementById('modal-prova-ead').classList.remove('open');
+
+            if (resultado.aprovado) {
+                this.showToast(`🎉 PARABÉNS! Você foi APROVADO com nota ${resultado.nota}%! Certificado emitido!`, 'success');
+                if (this.eadMatriculaAtiva) {
+                    this.eadMatriculaAtiva.status = 'Aprovado';
+                    this.eadMatriculaAtiva.nota_final = resultado.nota;
+                }
+            } else {
+                this.showToast(`Nota obtida: ${resultado.nota}%. A nota de corte é 70%. Você pode revisar o conteúdo e tentar novamente.`, 'danger');
+            }
+
+            this.atualizarCardStatusProva();
+            await this.renderEad();
+        } catch (err) {
+            console.error('Erro ao submeter prova:', err);
+        } finally {
+            const btn = document.getElementById('btn-finalizar-prova');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = 'Finalizar e Enviar Prova 🚀';
+            }
+        }
+    },
+
+    async imprimirCertificadoEad(matId) {
+        try {
+            this.showToast('Gerando Certificado Oficial NR-01 Anexo II...', 'info');
+            const certData = await this.api(`/ead/matriculas/${matId}/certificado`);
+            if (typeof imprimirCertificadoTreinamentoEad === 'function') {
+                imprimirCertificadoTreinamentoEad(certData);
+            } else {
+                this.showToast('Módulo de impressão de certificado não carregado.', 'danger');
+            }
+        } catch (err) {
+            console.error('Erro ao gerar certificado:', err);
+            this.showToast('Não foi possível gerar o certificado.', 'danger');
+        }
+    },
+
+    abrirModalNovoCurso() {
+        document.getElementById('curso-ead-id').value = '';
+        document.getElementById('cad-curso-titulo').value = '';
+        document.getElementById('cad-curso-categoria').value = 'NR-01';
+        document.getElementById('cad-curso-horas').value = '8';
+        document.getElementById('cad-curso-validade').value = '24';
+        document.getElementById('cad-curso-nota').value = '70';
+        document.getElementById('cad-curso-descricao').value = '';
+        document.getElementById('cad-curso-ementa').value = '';
+
+        // Limpar e preencher 1 aula e 2 questões padrão
+        document.getElementById('cad-curso-aulas-container').innerHTML = '';
+        document.getElementById('cad-curso-questoes-container').innerHTML = '';
+
+        this.adicionarLinhaAula({ titulo: 'Introdução, Conceitos e Diretrizes Gerais', duracao: 30, tipo: 'youtube', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' });
+        this.adicionarLinhaQuestao({ enunciado: 'Qual o objetivo principal desta capacitação segundo a NR?', correta: 'A' });
+
+        document.getElementById('modal-novo-curso-ead').classList.add('open');
+    },
+
+    adicionarLinhaAula(dados = {}) {
+        const container = document.getElementById('cad-curso-aulas-container');
+        const idx = container.children.length + 1;
+        const row = document.createElement('div');
+        row.className = 'cad-aula-row';
+        row.style.background = '#f8fafc';
+        row.style.border = '1px solid #cbd5e1';
+        row.style.borderRadius = '8px';
+        row.style.padding = '12px';
+
+        row.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: 700; font-size: 0.85rem; color: #0284c7;">AULA ${idx}</span>
+                <button type="button" class="btn btn-outline" style="color: #dc2626; border-color: #fca5a5; padding: 2px 8px; font-size: 0.75rem;" onclick="this.closest('.cad-aula-row').remove()">Remover Aula ❌</button>
+            </div>
+            <div class="form-grid" style="gap: 8px;">
+                <div class="form-group full-width">
+                    <label class="form-label">Título da Aula *</label>
+                    <input type="text" class="form-control aula-titulo" required value="${dados.titulo || ''}" placeholder="Ex: Módulo 1 - Reconhecimento e Análise de Riscos">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tipo de Mídia / Vídeo</label>
+                    <select class="form-control aula-tipo">
+                        <option value="youtube" ${dados.tipo === 'youtube' ? 'selected' : ''}>Link YouTube</option>
+                        <option value="vimeo" ${dados.tipo === 'vimeo' ? 'selected' : ''}>Link Vimeo</option>
+                        <option value="upload" ${dados.tipo === 'upload' ? 'selected' : ''}>Arquivo no Servidor (/uploads)</option>
+                        <option value="externo" ${dados.tipo === 'externo' ? 'selected' : ''}>Outro Link Externo (Drive/Portal)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Duração (Minutos)</label>
+                    <input type="number" class="form-control aula-duracao" value="${dados.duracao || 20}" min="1" max="300">
+                </div>
+                <div class="form-group full-width">
+                    <label class="form-label">URL do Vídeo (Link Externo ou Caminho de Upload) *</label>
+                    <input type="text" class="form-control aula-url" required value="${dados.url || ''}" placeholder="https://www.youtube.com/watch?v=... ou /uploads/video.mp4">
+                </div>
+                <div class="form-group full-width">
+                    <label class="form-label">Orientações e Conteúdo Complementar da Aula</label>
+                    <textarea class="form-control aula-conteudo" rows="2" placeholder="Instruções adicionais para o aluno acompanhar este módulo...">${dados.conteudo || ''}</textarea>
+                </div>
+            </div>
+        `;
+        container.appendChild(row);
+    },
+
+    adicionarLinhaQuestao(dados = {}) {
+        const container = document.getElementById('cad-curso-questoes-container');
+        const idx = container.children.length + 1;
+        const row = document.createElement('div');
+        row.className = 'cad-questao-row';
+        row.style.background = '#f8fafc';
+        row.style.border = '1px solid #cbd5e1';
+        row.style.borderRadius = '8px';
+        row.style.padding = '12px';
+
+        row.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: 700; font-size: 0.85rem; color: #1e293b;">QUESTÃO ${idx}</span>
+                <button type="button" class="btn btn-outline" style="color: #dc2626; border-color: #fca5a5; padding: 2px 8px; font-size: 0.75rem;" onclick="this.closest('.cad-questao-row').remove()">Remover ❌</button>
+            </div>
+            <div class="form-group full-width" style="margin-bottom: 8px;">
+                <label class="form-label">Enunciado da Questão *</label>
+                <input type="text" class="form-control q-enunciado" required value="${dados.enunciado || ''}" placeholder="Ex: Qual o equipamento obrigatório antes de iniciar a operação?">
+            </div>
+            <div class="form-grid" style="gap: 6px;">
+                <div class="form-group full-width">
+                    <input type="text" class="form-control q-op-a" required placeholder="Alternativa A (Ex: Realizar a APR e inspecionar os EPIs)" value="${(dados.opcoes && dados.opcoes[0]) || ''}">
+                </div>
+                <div class="form-group full-width">
+                    <input type="text" class="form-control q-op-b" required placeholder="Alternativa B (Ex: Iniciar imediatamente sem avisar a equipe)" value="${(dados.opcoes && dados.opcoes[1]) || ''}">
+                </div>
+                <div class="form-group full-width">
+                    <input type="text" class="form-control q-op-c" required placeholder="Alternativa C (Ex: Desativar os sensores de emergência)" value="${(dados.opcoes && dados.opcoes[2]) || ''}">
+                </div>
+                <div class="form-group full-width">
+                    <input type="text" class="form-control q-op-d" required placeholder="Alternativa D (Ex: Aguardar o final do expediente)" value="${(dados.opcoes && dados.opcoes[3]) || ''}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Gabarito Correto</label>
+                    <select class="form-control q-correta">
+                        <option value="A" ${dados.correta === 'A' ? 'selected' : ''}>Alternativa A</option>
+                        <option value="B" ${dados.correta === 'B' ? 'selected' : ''}>Alternativa B</option>
+                        <option value="C" ${dados.correta === 'C' ? 'selected' : ''}>Alternativa C</option>
+                        <option value="D" ${dados.correta === 'D' ? 'selected' : ''}>Alternativa D</option>
+                    </select>
+                </div>
+            </div>
+        `;
+        container.appendChild(row);
+    },
+
+    async salvarNovoCursoEad(e) {
+        if (e) e.preventDefault();
+        const titulo = document.getElementById('cad-curso-titulo').value.trim();
+        const categoria = document.getElementById('cad-curso-categoria').value;
+        const carga_horaria = parseInt(document.getElementById('cad-curso-horas').value, 10);
+        const validade_meses = parseInt(document.getElementById('cad-curso-validade').value, 10);
+        const nota_minima = parseInt(document.getElementById('cad-curso-nota').value, 10);
+        const descricao = document.getElementById('cad-curso-descricao').value.trim();
+        const conteudo_programatico = document.getElementById('cad-curso-ementa').value.trim();
+
+        // Extrair aulas
+        const aulas = [];
+        document.querySelectorAll('.cad-aula-row').forEach(row => {
+            const tit = row.querySelector('.aula-titulo').value.trim();
+            const tip = row.querySelector('.aula-tipo').value;
+            const dur = parseInt(row.querySelector('.aula-duracao').value, 10) || 15;
+            const url = row.querySelector('.aula-url').value.trim();
+            const cont = row.querySelector('.aula-conteudo').value.trim();
+            if (tit && url) {
+                aulas.push({ titulo: tit, tipo_video: tip, duracao_minutos: dur, url_video: url, conteudo_texto: cont });
+            }
+        });
+
+        if (aulas.length === 0) {
+            this.showToast('Adicione pelo menos 1 aula com vídeo.', 'danger');
+            return;
+        }
+
+        // Extrair questões
+        const questoes = [];
+        document.querySelectorAll('.cad-questao-row').forEach(row => {
+            const enun = row.querySelector('.q-enunciado').value.trim();
+            const opA = row.querySelector('.q-op-a').value.trim();
+            const opB = row.querySelector('.q-op-b').value.trim();
+            const opC = row.querySelector('.q-op-c').value.trim();
+            const opD = row.querySelector('.q-op-d').value.trim();
+            const corr = row.querySelector('.q-correta').value;
+
+            if (enun && opA && opB) {
+                questoes.push({
+                    enunciado: enun,
+                    opcoes: [opA, opB, opC, opD].filter(Boolean),
+                    correta: corr
+                });
+            }
+        });
+
+        const payload = {
+            titulo,
+            categoria,
+            carga_horaria,
+            validade_meses,
+            nota_minima,
+            descricao,
+            conteudo_programatico,
+            aulas,
+            avaliacao: {
+                titulo: `Prova Prática de ${categoria}`,
+                questoes
+            }
+        };
+
+        try {
+            const btn = document.getElementById('btn-salvar-curso-ead');
+            btn.disabled = true;
+            btn.innerText = 'Salvando Treinamento...';
+
+            await this.api('/ead/cursos', 'POST', payload);
+            this.showToast('Treinamento EAD publicado com sucesso!', 'success');
+            document.getElementById('modal-novo-curso-ead').classList.remove('open');
+            await this.renderEad();
+        } catch (err) {
+            console.error('Erro ao salvar treinamento EAD:', err);
+        } finally {
+            const btn = document.getElementById('btn-salvar-curso-ead');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = 'Salvar e Publicar Treinamento';
+            }
+        }
+    },
+
+    async abrirModalMatricular(cursoId = null) {
+        try {
+            const [cursos, colabs] = await Promise.all([
+                this.api('/ead/cursos'),
+                this.api('/colaboradores')
+            ]);
+
+            const cursoSelect = document.getElementById('mat-curso-id');
+            const colabSelect = document.getElementById('mat-colaborador-id');
+
+            cursoSelect.innerHTML = cursos.map(c => `
+                <option value="${c.id}" ${cursoId && c.id === cursoId ? 'selected' : ''}>${c.categoria} - ${c.titulo}</option>
+            `).join('');
+
+            colabSelect.innerHTML = colabs.map(col => `
+                <option value="${col.id}">${col.nome} (CPF: ${col.cpf}) - ${col.cargo_nome || 'Colaborador'}</option>
+            `).join('');
+
+            document.getElementById('modal-matricular-ead').classList.add('open');
+        } catch (err) {
+            console.error('Erro ao abrir matrícula:', err);
+        }
+    },
+
+    async salvarMatriculaEad(e) {
+        if (e) e.preventDefault();
+        const curso_id = parseInt(document.getElementById('mat-curso-id').value, 10);
+        const colaborador_id = parseInt(document.getElementById('mat-colaborador-id').value, 10);
+
+        try {
+            await this.api('/ead/matriculas', 'POST', { curso_id, colaborador_id });
+            this.showToast('Colaborador matriculado com sucesso no treinamento EAD!', 'success');
+            document.getElementById('modal-matricular-ead').classList.remove('open');
+            await this.renderEad();
+        } catch (err) {
+            console.error('Erro ao matricular:', err);
+        }
+    },
+
+    // ====================================================================
+    // 13. CANAL DE DENÚNCIAS & LINHA ÉTICA (LEI 14.457/2022)
+    // ====================================================================
+    _ultimoProtocolo: '',
+    _ultimaChave: '',
+
+    abrirPortalDenuncias() {
+        const portal = document.getElementById('portal-denuncias');
+        if (portal) {
+            portal.style.display = 'flex';
+            this.alternarTabPortalDenuncia('nova');
+            this.selecionarTipoDenuncia('anonima');
+
+            const form = document.getElementById('form-publico-denuncia');
+            if (form) form.reset();
+            const successBox = document.getElementById('box-sucesso-denuncia');
+            if (successBox) successBox.style.display = 'none';
+            if (form) form.style.display = 'block';
+        }
+    },
+
+    fecharPortalDenuncias() {
+        const portal = document.getElementById('portal-denuncias');
+        if (portal) portal.style.display = 'none';
+    },
+
+    alternarTabPortalDenuncia(tab) {
+        const btnNova = document.getElementById('btn-tab-nova-denuncia');
+        const btnAcompanhar = document.getElementById('btn-tab-acompanhar-denuncia');
+        const tabNova = document.getElementById('portal-tab-nova');
+        const tabAcompanhar = document.getElementById('portal-tab-acompanhar');
+
+        if (tab === 'nova') {
+            btnNova.className = 'btn btn-primary';
+            btnAcompanhar.className = 'btn btn-outline';
+            tabNova.style.display = 'block';
+            tabAcompanhar.style.display = 'none';
+        } else {
+            btnNova.className = 'btn btn-outline';
+            btnAcompanhar.className = 'btn btn-primary';
+            tabNova.style.display = 'none';
+            tabAcompanhar.style.display = 'block';
+        }
+    },
+
+    selecionarTipoDenuncia(tipo) {
+        const hiddenInput = document.getElementById('denuncia-tipo');
+        if (hiddenInput) hiddenInput.value = tipo;
+
+        const cardAnon = document.getElementById('card-tipo-anonima');
+        const cardIdent = document.getElementById('card-tipo-identificada');
+        const boxIdent = document.getElementById('box-dados-identificados');
+
+        if (tipo === 'anonima') {
+            if (cardAnon) cardAnon.classList.add('active');
+            if (cardIdent) cardIdent.classList.remove('active');
+            if (boxIdent) boxIdent.style.display = 'none';
+        } else {
+            if (cardAnon) cardAnon.classList.remove('active');
+            if (cardIdent) cardIdent.classList.add('active');
+            if (boxIdent) boxIdent.style.display = 'block';
+        }
+    },
+
+    async enviarDenunciaPublica(e) {
+        if (e) e.preventDefault();
+        const tipo = document.getElementById('denuncia-tipo').value;
+        const categoria = document.getElementById('den-categoria').value;
+        const gravidade = document.getElementById('den-gravidade').value;
+        const data_fato = document.getElementById('den-data-fato').value;
+        const local_fato = document.getElementById('den-local').value.trim();
+        const envolvidos = document.getElementById('den-envolvidos').value.trim();
+        const descricao = document.getElementById('den-descricao').value.trim();
+        const testemunhas = document.getElementById('den-testemunhas').value.trim();
+
+        const payload = {
+            tipo,
+            categoria,
+            gravidade,
+            data_fato,
+            local_fato,
+            envolvidos,
+            descricao,
+            testemunhas
+        };
+
+        if (tipo === 'identificada') {
+            payload.nome = document.getElementById('den-nome').value.trim();
+            payload.email = document.getElementById('den-email').value.trim();
+            payload.telefone = document.getElementById('den-telefone').value.trim();
+            payload.setor = document.getElementById('den-setor').value.trim();
+        }
+
+        try {
+            const btn = document.getElementById('btn-submit-denuncia');
+            btn.disabled = true;
+            btn.innerText = 'Criptografando e Enviando...';
+
+            const res = await fetch('/api/denuncias', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Erro ao enviar relato.');
+
+            this._ultimoProtocolo = data.denuncia.protocolo;
+            this._ultimaChave = data.denuncia.chave_acesso;
+
+            document.getElementById('sucesso-protocolo').innerText = data.denuncia.protocolo;
+            document.getElementById('sucesso-chave').innerText = data.denuncia.chave_acesso;
+
+            document.getElementById('form-publico-denuncia').style.display = 'none';
+            document.getElementById('box-sucesso-denuncia').style.display = 'block';
+
+            this.showToast('Denúncia registrada com sucesso e total sigilo!', 'success');
+        } catch (err) {
+            console.error('Erro ao enviar denúncia:', err);
+            this.showToast(err.message || 'Erro ao registrar denúncia.', 'danger');
+        } finally {
+            const btn = document.getElementById('btn-submit-denuncia');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = '🔒 Enviar Denúncia com Segurança';
+            }
+        }
+    },
+
+    copiarProtocoloChave() {
+        const texto = `SafeWork - Linha Ética CIPA+A\nProtocolo: ${this._ultimoProtocolo}\nChave de Acesso: ${this._ultimaChave}\nLink de Acompanhamento: ${window.location.origin}`;
+        navigator.clipboard.writeText(texto).then(() => {
+            this.showToast('Protocolo e Chave copiados para a área de transferência!', 'success');
+        }).catch(() => {
+            prompt('Copie seu Protocolo e Chave abaixo:', `${this._ultimoProtocolo} | ${this._ultimaChave}`);
+        });
+    },
+
+    async consultarDenunciaPublica(e) {
+        if (e) e.preventDefault();
+        const protocolo = document.getElementById('busca-protocolo').value.trim();
+        const chave_acesso = document.getElementById('busca-chave').value.trim();
+        const resContainer = document.getElementById('resultado-acompanhamento-denuncia');
+
+        if (!protocolo || !chave_acesso) return;
+
+        try {
+            resContainer.innerHTML = '<div style="padding: 16px; color: #64748b;">Consultando banco de dados de apuração...</div>';
+
+            const res = await fetch(`/api/denuncias/consultar?protocolo=${encodeURIComponent(protocolo)}&chave_acesso=${encodeURIComponent(chave_acesso)}`);
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error || 'Protocolo ou chave inválida.');
+
+            const d = data.denuncia;
+            const statusBg = {
+                'Recebida': '#fef3c7',
+                'Em Investigação': '#e0f2fe',
+                'Procedente': '#fee2e2',
+                'Improcedente': '#f1f5f9',
+                'Concluída': '#dcfce7'
+            }[d.status] || '#f1f5f9';
+
+            const statusColor = {
+                'Recebida': '#d97706',
+                'Em Investigação': '#0284c7',
+                'Procedente': '#dc2626',
+                'Improcedente': '#64748b',
+                'Concluída': '#16a34a'
+            }[d.status] || '#334155';
+
+            resContainer.innerHTML = `
+                <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 18px; margin-top: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 12px;">
+                        <div>
+                            <div style="font-size: 0.75rem; color: #64748b; font-weight: 700;">PROTOCOLO REGISTRADO</div>
+                            <div style="font-size: 1.15rem; font-weight: 800; color: #0369a1; font-family: monospace;">${d.protocolo}</div>
+                        </div>
+                        <div>
+                            <span style="background: ${statusBg}; color: ${statusColor}; padding: 6px 14px; border-radius: 999px; font-weight: 800; font-size: 0.85rem;">
+                                STATUS: ${d.status.toUpperCase()}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="form-grid" style="font-size: 0.88rem; gap: 8px; margin-bottom: 14px;">
+                        <div><strong>Categoria:</strong> ${d.categoria}</div>
+                        <div><strong>Data do Registro:</strong> ${new Date(d.created_at).toLocaleDateString('pt-BR')}</div>
+                        <div><strong>Gravidade Informada:</strong> ${d.gravidade}</div>
+                        <div><strong>Modalidade:</strong> ${d.tipo === 'anonima' ? '🕵️ Anônima (Sigilosa)' : '👤 Identificada'}</div>
+                    </div>
+
+                    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+                        <div style="font-weight: 700; font-size: 0.82rem; color: #64748b; margin-bottom: 4px;">RESUMO DO SEU RELATO:</div>
+                        <div style="font-size: 0.88rem; color: #334155; line-height: 1.5;">${d.descricao}</div>
+                    </div>
+
+                    <div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 8px; padding: 14px;">
+                        <div style="font-weight: 700; font-size: 0.9rem; color: #1e40af; margin-bottom: 6px;">
+                            🏛️ Parecer Oficial do Comitê de Ética / CIPA+A:
+                        </div>
+                        <div style="font-size: 0.88rem; color: #1e3a8a; line-height: 1.5; margin-bottom: 8px;">
+                            ${d.resposta_denunciante || 'Sua manifestação foi recebida com sucesso e está sob triagem preliminar do Comitê de Ética. O prazo legal para primeira apuração é de até 30 dias.'}
+                        </div>
+                        ${d.medidas_tomadas ? `
+                            <div style="font-size: 0.82rem; color: #047857; font-weight: 700;">
+                                Medidas adotadas: ${d.medidas_tomadas}
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        } catch (err) {
+            resContainer.innerHTML = `<div style="padding: 16px; background: #fee2e2; border: 1px solid #fca5a5; color: #b91c1c; border-radius: 8px; font-size: 0.88rem;">${err.message || 'Relato não encontrado.'}</div>`;
+        }
+    },
+
+    async renderDenuncias() {
+        try {
+            const filtro = document.getElementById('filtro-status-denuncia')?.value || '';
+            const data = await this.api(`/denuncias${filtro ? `?status=${encodeURIComponent(filtro)}` : ''}`);
+
+            const lista = data.denuncias || [];
+            const st = data.estatisticas || {};
+
+            // Atualizar KPIs
+            document.getElementById('kpi-denuncias-total').innerText = st.total || lista.length;
+            document.getElementById('kpi-denuncias-investigacao').innerText = st.em_investigacao || 0;
+            document.getElementById('kpi-denuncias-procedentes').innerText = st.procedentes || 0;
+            document.getElementById('kpi-denuncias-concluidas').innerText = st.concluidas || 0;
+
+            const tbody = document.getElementById('tbody-denuncias');
+            if (!tbody) return;
+
+            if (lista.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 24px;">Nenhuma denúncia registrada com este filtro.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = lista.map(d => {
+                const statusBadgeBg = {
+                    'Recebida': '#fef3c7',
+                    'Em Investigação': '#e0f2fe',
+                    'Procedente': '#fee2e2',
+                    'Improcedente': '#f1f5f9',
+                    'Concluída': '#dcfce7'
+                }[d.status] || '#f1f5f9';
+
+                const statusColor = {
+                    'Recebida': '#d97706',
+                    'Em Investigação': '#0284c7',
+                    'Procedente': '#dc2626',
+                    'Improcedente': '#64748b',
+                    'Concluída': '#16a34a'
+                }[d.status] || '#334155';
+
+                const urgBg = d.gravidade === 'Alta' ? '#fee2e2' : (d.gravidade === 'Média' ? '#fef3c7' : '#f1f5f9');
+                const urgColor = d.gravidade === 'Alta' ? '#dc2626' : (d.gravidade === 'Média' ? '#d97706' : '#64748b');
+
+                return `
+                    <tr>
+                        <td style="font-family: monospace; font-weight: 700; color: #0284c7;">${d.protocolo}</td>
+                        <td>${new Date(d.created_at).toLocaleDateString('pt-BR')}</td>
+                        <td>
+                            <span class="badge" style="background: ${d.tipo === 'anonima' ? '#f1f5f9' : '#e0f2fe'}; color: ${d.tipo === 'anonima' ? '#475569' : '#0369a1'};">
+                                ${d.tipo === 'anonima' ? '🕵️ Anônima' : '👤 Identificada'}
+                            </span>
+                        </td>
+                        <td style="font-weight: 600;">${d.categoria}</td>
+                        <td><span class="badge" style="background: ${urgBg}; color: ${urgColor};">${d.gravidade}</span></td>
+                        <td><span class="badge" style="background: ${statusBadgeBg}; color: ${statusColor}; font-weight: 700;">${d.status}</span></td>
+                        <td>
+                            <button type="button" class="btn btn-outline" style="padding: 5px 10px; font-size: 0.8rem;" onclick="App.abrirModalDetalhesDenuncia(${d.id})">
+                                ⚖️ Analisar / Tramitar
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        } catch (err) {
+            console.error('Erro ao renderizar denúncias:', err);
+        }
+    },
+
+    async abrirModalDetalhesDenuncia(id) {
+        try {
+            const data = await this.api(`/denuncias/${id}`);
+            const d = data.denuncia;
+
+            document.getElementById('tramitacao-denuncia-id').value = d.id;
+            document.getElementById('modal-denuncia-subtitulo').innerText = `Protocolo: ${d.protocolo} • Registrado em: ${new Date(d.created_at).toLocaleDateString('pt-BR')}`;
+
+            // Preencher campos de tramitação
+            document.getElementById('tramitacao-status').value = d.status || 'Recebida';
+            document.getElementById('tramitacao-medidas').value = d.medidas_tomadas || '';
+            document.getElementById('tramitacao-resposta').value = d.resposta_denunciante || '';
+            document.getElementById('tramitacao-notas').value = d.parecer_comite || '';
+
+            // Montar visualização dos fatos
+            const content = document.getElementById('detalhes-denuncia-content');
+            content.innerHTML = `
+                <div style="background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+                        <div>
+                            <span style="font-size: 0.8rem; color: #64748b;">Modalidade:</span>
+                            <span style="font-weight: 700; color: #1e293b;">${d.tipo === 'anonima' ? '🕵️ Denúncia Anônima (Sigilo Absoluto Lei 14.457/22)' : '👤 Denúncia Identificada'}</span>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.8rem; color: #64748b;">Gravidade:</span>
+                            <span style="font-weight: 700; color: #dc2626;">${d.gravidade}</span>
+                        </div>
+                    </div>
+
+                    ${d.tipo === 'identificada' ? `
+                        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px; border-radius: 6px; margin-bottom: 10px; font-size: 0.85rem;">
+                            <div style="font-weight: 700; color: #166534; margin-bottom: 4px;">📋 Dados do Denunciante (Protegido por LGPD e Imunidade):</div>
+                            <div>Nome: <strong>${d.nome || '-'}</strong> | E-mail: <strong>${d.email || '-'}</strong> | Tel: <strong>${d.telefone || '-'}</strong> | Setor: <strong>${d.setor || '-'}</strong></div>
+                        </div>
+                    ` : ''}
+
+                    <div class="form-grid" style="font-size: 0.88rem; gap: 8px; margin-bottom: 10px;">
+                        <div><strong>Categoria:</strong> ${d.categoria}</div>
+                        <div><strong>Data do Fato:</strong> ${d.data_fato || 'Não especificada'}</div>
+                        <div><strong>Local / Setor:</strong> ${d.local_fato || 'Não especificado'}</div>
+                        <div><strong>Pessoas Envolvidas:</strong> ${d.envolvidos || 'Não especificados'}</div>
+                    </div>
+
+                    <div style="margin-bottom: 10px;">
+                        <div style="font-weight: 700; font-size: 0.82rem; color: #64748b; margin-bottom: 4px;">RELATO COMPLETO:</div>
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; font-size: 0.9rem; color: #1e293b; line-height: 1.6; white-space: pre-wrap;">${d.descricao}</div>
+                    </div>
+
+                    ${d.testemunhas ? `
+                        <div>
+                            <div style="font-weight: 700; font-size: 0.82rem; color: #64748b; margin-bottom: 2px;">TESTEMUNHAS OU EVIDÊNCIAS APONTADAS:</div>
+                            <div style="font-size: 0.85rem; color: #475569;">${d.testemunhas}</div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+
+            document.getElementById('modal-detalhes-denuncia').classList.add('open');
+        } catch (err) {
+            console.error('Erro ao abrir detalhes da denúncia:', err);
+        }
+    },
+
+    async salvarTramitacaoDenuncia(e) {
+        if (e) e.preventDefault();
+        const id = document.getElementById('tramitacao-denuncia-id').value;
+        const status = document.getElementById('tramitacao-status').value;
+        const medidas_tomadas = document.getElementById('tramitacao-medidas').value.trim();
+        const resposta_denunciante = document.getElementById('tramitacao-resposta').value.trim();
+        const parecer_comite = document.getElementById('tramitacao-notas').value.trim();
+
+        try {
+            await this.api(`/denuncias/${id}/tramitacao`, 'PUT', {
+                status,
+                medidas_tomadas,
+                resposta_denunciante,
+                parecer_comite
+            });
+
+            this.showToast('Tramitação atualizada com sucesso! Denunciante poderá consultar o andamento.', 'success');
+            document.getElementById('modal-detalhes-denuncia').classList.remove('open');
+            await this.renderDenuncias();
+        } catch (err) {
+            console.error('Erro ao salvar tramitação:', err);
         }
     }
 };

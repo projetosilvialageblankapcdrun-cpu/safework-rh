@@ -395,5 +395,113 @@ const PrintService = {
         `;
 
         window.print();
+    },
+
+    // 5. IMPRIMIR CERTIFICADO DE TREINAMENTO OFICIAL EAD (NR-01 ANEXO II)
+    imprimirCertificadoTreinamentoEad(cert) {
+        const printContainer = document.getElementById('print-container');
+        if (!printContainer) return;
+
+        const dataConclusaoFmt = cert.data_conclusao ? new Date(cert.data_conclusao).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+        const dataMatriculaFmt = cert.data_matricula ? new Date(cert.data_matricula).toLocaleDateString('pt-BR') : dataConclusaoFmt;
+
+        const programaLinhas = (cert.conteudo_programatico || '')
+            .split('\n')
+            .filter(l => l.trim())
+            .map(l => `<li style="margin-bottom: 4px;">${l}</li>`)
+            .join('');
+
+        printContainer.innerHTML = `
+            <div class="print-doc" style="border: 6px double #0284c7; padding: 25px 30px; background: #ffffff; min-height: 980px; position: relative;">
+                <!-- Cabeçalho -->
+                <div style="text-align: center; border-bottom: 2px solid #0284c7; padding-bottom: 15px; margin-bottom: 20px;">
+                    <div style="font-size: 20pt; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em;">
+                        ${cert.empresa_razao || 'MetalSul Estruturas Metálicas e Caldeiraria S/A'}
+                    </div>
+                    <div style="font-size: 8.5pt; color: #64748b; margin-top: 3px;">
+                        CNPJ: ${cert.empresa_cnpj || '18.234.567/0001-89'} | CNAE: ${cert.empresa_cnae || '25.11-0'} | ${cert.empresa_cidade || 'Campinas'}/${cert.empresa_uf || 'SP'}
+                    </div>
+                    <div style="display: inline-block; background: #e0f2fe; color: #0369a1; padding: 4px 14px; border-radius: 20px; font-weight: 700; font-size: 8.5pt; margin-top: 8px;">
+                        SISTEMA DE GESTÃO DE SEGURANÇA E SAÚDE NO TRABALHO - ACADEMIA CORPORATIVA
+                    </div>
+                </div>
+
+                <!-- Título do Certificado -->
+                <div style="text-align: center; margin: 25px 0 20px;">
+                    <div style="font-size: 26pt; font-weight: 900; color: #0284c7; letter-spacing: 0.08em; font-family: 'Times New Roman', serif;">
+                        CERTIFICADO
+                    </div>
+                    <div style="font-size: 10pt; font-weight: bold; color: #334155; text-transform: uppercase; margin-top: 4px;">
+                        DE CAPACITAÇÃO E TREINAMENTO PROFISSIONAL EM SEGURANÇA DO TRABALHO
+                    </div>
+                    <div style="font-size: 8.5pt; color: #64748b; font-style: italic;">
+                        Conforme requisitos legais do Anexo II da Norma Regulamentadora NR-01 (Portaria SEPRT nº 6.730)
+                    </div>
+                </div>
+
+                <!-- Texto de Conclusão -->
+                <div style="font-size: 11.5pt; line-height: 1.8; text-align: justify; margin: 25px 10px; color: #1e293b;">
+                    Certificamos que o(a) colaborador(a) <strong>${cert.colaborador_nome.toUpperCase()}</strong>, 
+                    inscrito(a) no CPF sob o nº <strong>${cert.colaborador_cpf}</strong>, 
+                    matrícula <strong>${cert.colaborador_matricula || 'MAT-00000'}</strong>, ocupante da função de 
+                    <strong>${cert.cargo_nome}</strong> (CBO: ${cert.cbo || '---'}), lotado(a) no setor <strong>${cert.setor_nome}</strong>, 
+                    concluiu com êxito na modalidade <strong>Ensino a Distância (EAD) / Rastreável</strong> o treinamento:
+                </div>
+
+                <!-- Destaque do Curso -->
+                <div style="background: #f8fafc; border-left: 5px solid #0284c7; border-right: 1px solid #e2e8f0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; padding: 14px 20px; border-radius: 6px; margin: 15px 10px 25px; text-align: center;">
+                    <div style="font-size: 15pt; font-weight: 800; color: #0f172a; text-transform: uppercase;">
+                        ${cert.curso_titulo}
+                    </div>
+                    <div style="display: flex; justify-content: center; gap: 25px; margin-top: 8px; font-size: 9.5pt; color: #475569;">
+                        <span><strong>Carga Horária:</strong> ${cert.carga_horaria_horas} horas</span>
+                        <span><strong>Período:</strong> ${dataMatriculaFmt} a ${dataConclusaoFmt}</span>
+                        <span><strong>Aproveitamento Final:</strong> ${cert.nota_final ? cert.nota_final.toFixed(1) + '%' : '100%'}</span>
+                        <span><strong>Classificação:</strong> <span style="color: #16a34a; font-weight: bold;">APROVADO</span></span>
+                    </div>
+                </div>
+
+                <!-- Conteúdo Programático -->
+                <div style="margin: 20px 10px; font-size: 9pt;">
+                    <div style="font-weight: bold; color: #0f172a; text-transform: uppercase; margin-bottom: 6px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px;">
+                        Conteúdo Programático Cumprido (NR-01 Anexo II):
+                    </div>
+                    <ul style="margin: 0; padding-left: 20px; color: #334155; line-height: 1.5;">
+                        ${programaLinhas || '<li>Conceitos gerais de segurança e saúde ocupacional da respectiva Norma Regulamentadora.</li>'}
+                    </ul>
+                </div>
+
+                <!-- Autenticidade & Validação -->
+                <div style="margin: 25px 10px 15px; background: #f1f5f9; padding: 8px 14px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 8pt; color: #475569;">
+                    <div>
+                        <strong>Código de Autenticação Digital:</strong> <code>${cert.certificado_codigo || 'CERT-AUTENTICO-2026'}</code>
+                    </div>
+                    <div>
+                        <strong>Registro no Sistema SafeWork:</strong> Válido em todo o território nacional
+                    </div>
+                </div>
+
+                <!-- Assinaturas Regulamentares -->
+                <div class="print-signatures" style="margin-top: 45px; display: flex; justify-content: space-around; text-align: center;">
+                    <div class="signature-line" style="width: 42%; border-top: 1px solid #000; padding-top: 6px; font-size: 8.5pt;">
+                        <strong>${cert.colaborador_nome}</strong><br>
+                        CPF: ${cert.colaborador_cpf}<br>
+                        <span style="font-size: 7.5pt; color: #64748b;">Assinatura do Trabalhador / Aluno</span>
+                    </div>
+                    <div class="signature-line" style="width: 42%; border-top: 1px solid #000; padding-top: 6px; font-size: 8.5pt;">
+                        <strong>${cert.instrutor_nome || 'Prof. Ricardo Santos'}</strong><br>
+                        Engenheiro de Segurança / Instrutor Habilitado<br>
+                        <span style="font-size: 7.5pt; color: #64748b;">Responsável Técnico pelo Treinamento (NR-01 Anexo II)</span>
+                    </div>
+                </div>
+
+                <!-- Rodapé -->
+                <div style="position: absolute; bottom: 12px; left: 30px; right: 30px; text-align: center; font-size: 7pt; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 4px;">
+                    Documento gerado eletronicamente pela plataforma SafeWork RH & SST em conformidade com as Portarias MTP e diretrizes da NR-01 Anexo II. A validade deste documento pode ser confirmada junto ao SESMT da empresa.
+                </div>
+            </div>
+        `;
+
+        window.print();
     }
 };

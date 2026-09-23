@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SafeWork RH & SST - Sistema Integrado DP e Segurança do Trabalho</title>
-    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/styles.css?v=2">
 </head>
 <body>
     <!-- TELA DE LOGIN & AUTENTICAÇÃO -->
@@ -32,6 +32,9 @@
                 <button type="submit" id="btn-login-submit" class="btn btn-primary" style="padding: 12px; font-size: 1rem; justify-content: center; margin-top: 6px;">
                     🔐 Acessar Sistema
                 </button>
+                <button type="button" class="btn" onclick="App.abrirPortalDenuncias()" style="padding: 11px; font-size: 0.9rem; justify-content: center; background: #fffbeb; border: 1.5px solid #f59e0b; color: #b45309; font-weight: 700; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                    🔒 Canal de Denúncias & Linha Ética (Lei 14.457/22)
+                </button>
             </form>
 
             <div class="login-demo-box">
@@ -40,6 +43,14 @@
                     <div>
                         <button type="button" class="login-demo-btn" onclick="App.preencherCredencialDemo('admin', 'admin123')">Administrador Master</button>
                         <span style="font-size: 0.75rem; color: #64748b;">(admin / admin123)</span>
+                    </div>
+                    <div>
+                        <button type="button" class="login-demo-btn" onclick="App.preencherCredencialDemo('prof.ricardo', 'prof123')">Instrutor / Professor EAD</button>
+                        <span style="font-size: 0.75rem; color: #64748b;">(prof.ricardo / prof123)</span>
+                    </div>
+                    <div>
+                        <button type="button" class="login-demo-btn" onclick="App.preencherCredencialDemo('ana.aluna', 'aluno123')">Colaborador / Aluno</button>
+                        <span style="font-size: 0.75rem; color: #64748b;">(ana.aluna / aluno123)</span>
                     </div>
                     <div>
                         <button type="button" class="login-demo-btn" onclick="App.preencherCredencialDemo('carlos.dp', 'carlos123')">Gestor DP</button>
@@ -102,8 +113,12 @@
                     <span>Gestão de EPIs (NR-06)</span>
                 </a>
                 <a class="nav-link" data-tab="treinamentos">
+                    <span class="icon">📜</span>
+                    <span>Treinamentos NRs (Presencial)</span>
+                </a>
+                <a class="nav-link" data-tab="ead" id="nav-item-ead">
                     <span class="icon">🎓</span>
-                    <span>Treinamentos NRs</span>
+                    <span>Academia EAD, Vídeos & Provas</span>
                 </a>
                 <a class="nav-link" data-tab="acidentes">
                     <span class="icon">⚠️</span>
@@ -116,10 +131,14 @@
                     <span>Central eSocial & PPP</span>
                 </a>
 
-                <div class="nav-category" id="nav-cat-admin">Administração</div>
+                <div class="nav-category" id="nav-cat-admin">Administração & Ética</div>
                 <a class="nav-link" data-tab="usuarios" id="nav-item-usuarios">
                     <span class="icon">👥</span>
                     <span>Gestão de Usuários</span>
+                </a>
+                <a class="nav-link" data-tab="denuncias" id="nav-item-denuncias">
+                    <span class="icon">🔒</span>
+                    <span>Canal de Denúncias (CIPAA)</span>
                 </a>
             </nav>
 
@@ -468,9 +487,23 @@
 
                 <!-- 8. ABA: TREINAMENTOS NRS -->
                 <div id="view-treinamentos" class="tab-view" style="display: none;">
+                    <div style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: #ffffff; border-radius: 12px; padding: 18px 24px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; box-shadow: 0 4px 6px -1px rgba(2, 132, 199, 0.2);">
+                        <div>
+                            <div style="font-size: 1.1rem; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                                <span>🎓</span> Academia Corporativa EAD & Videoaulas (NR-01 Anexo II)
+                            </div>
+                            <div style="font-size: 0.85rem; opacity: 0.92; margin-top: 4px;">
+                                Buscando os cursos com videoaulas online, avaliações práticas, mural e certificados digitais?
+                            </div>
+                        </div>
+                        <button type="button" class="btn" onclick="App.switchTab('ead')" style="background: #ffffff; color: #0284c7; font-weight: 700; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            ▶️ Acessar Academia EAD & Provas Online
+                        </button>
+                    </div>
+
                     <div class="panel-card">
                         <div class="panel-header">
-                            <div class="panel-title">Capacitações Obrigatórias de Normas Regulamentadoras</div>
+                            <div class="panel-title">Capacitações Obrigatórias de Normas Regulamentadoras (Presenciais)</div>
                         </div>
                         <div class="panel-body" style="padding: 0;">
                             <div class="table-responsive">
@@ -544,6 +577,9 @@
                                 </table>
                             </div>
                         </div>
+                    </div>
+                </div>
+
                 <!-- 11. ABA: GESTÃO DE USUÁRIOS (ADMINISTRADOR) -->
                 <div id="view-usuarios" class="tab-view" style="display: none;">
                     <div class="panel-card">
@@ -573,6 +609,112 @@
                                         </tr>
                                     </thead>
                                     <tbody id="tbody-usuarios"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 12. ABA: ACADEMIA EAD & TREINAMENTOS CORPORATIVOS (NR-01 ANEXO II) -->
+                <div id="view-ead" class="tab-view" style="display: none;">
+                    <div class="panel-card" style="margin-bottom: 20px;">
+                        <div class="panel-header" style="justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                            <div>
+                                <div class="panel-title">🎓 Academia EAD & Treinamentos Normativos (NR-01 Anexo II)</div>
+                                <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 3px;">
+                                    Plataforma corporativa com videoaulas integradas (upload e links externos), avaliações práticas, mural de avisos, canal "Fale com o Professor" e emissão de certificados oficiais.
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <div id="ead-instructor-actions" style="display: flex; gap: 8px;">
+                                    <button class="btn btn-secondary" onclick="App.abrirModalMatricular()">
+                                        <span>👥</span> Matricular Colaborador
+                                    </button>
+                                    <button class="btn btn-primary" onclick="App.abrirModalNovoCurso()">
+                                        <span>➕</span> Novo Curso EAD
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Grid de Cursos -->
+                    <div id="ead-cursos-grid" class="ead-course-grid">
+                        <!-- Preenchido dinamicamente por App.renderEad() -->
+                    </div>
+                </div>
+
+                <!-- 13. ABA: CANAL DE DENÚNCIAS & LINHA ÉTICA (CIPA+A / LEI 14.457/2022) -->
+                <div id="view-denuncias" class="tab-view" style="display: none;">
+                    <div class="kpi-grid" style="margin-bottom: 20px;">
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Total de Relatos</span>
+                                <div class="kpi-icon" style="background: #fef3c7; color: #d97706;">🔒</div>
+                            </div>
+                            <div class="kpi-value" id="kpi-denuncias-total">0</div>
+                            <div class="kpi-footer">Canal Sigiloso e Independente</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Em Apuração / Investigação</span>
+                                <div class="kpi-icon" style="background: #e0f2fe; color: #0284c7;">🕵️</div>
+                            </div>
+                            <div class="kpi-value" id="kpi-denuncias-investigacao">0</div>
+                            <div class="kpi-footer">Comitê de Ética / CIPA+A</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Procedentes com Medidas</span>
+                                <div class="kpi-icon" style="background: #fee2e2; color: #dc2626;">⚖️</div>
+                            </div>
+                            <div class="kpi-value" id="kpi-denuncias-procedentes">0</div>
+                            <div class="kpi-footer">Ações Disciplinares Aplicadas</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Concluídas / Arquivadas</span>
+                                <div class="kpi-icon" style="background: #dcfce7; color: #16a34a;">✅</div>
+                            </div>
+                            <div class="kpi-value" id="kpi-denuncias-concluidas">0</div>
+                            <div class="kpi-footer">Tramitação Finalizada</div>
+                        </div>
+                    </div>
+
+                    <div class="panel-card">
+                        <div class="panel-header" style="justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                            <div>
+                                <div class="panel-title">🛡️ Painel do Comitê de Ética & CIPA+A (Lei nº 14.457/2022)</div>
+                                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 3px;">
+                                    Gestão sigilosa de denúncias de assédio sexual, moral e condutas impróprias com garantia de anonimato e proteção contra retaliação.
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <select id="filtro-status-denuncia" class="form-control" style="width: auto;" onchange="App.renderDenuncias()">
+                                    <option value="">Todos os Status</option>
+                                    <option value="Recebida">Recebida</option>
+                                    <option value="Em Investigação">Em Investigação</option>
+                                    <option value="Procedente">Procedente</option>
+                                    <option value="Improcedente">Improcedente</option>
+                                    <option value="Concluída">Concluída</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="panel-body" style="padding: 0;">
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Protocolo</th>
+                                            <th>Data Registro</th>
+                                            <th>Modalidade</th>
+                                            <th>Categoria</th>
+                                            <th>Gravidade / Urgência</th>
+                                            <th>Status Atual</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-denuncias"></tbody>
                                 </table>
                             </div>
                         </div>
@@ -949,6 +1091,8 @@
                             <option value="Administrador">Administrador Geral (Acesso Total)</option>
                             <option value="Gestor DP">Gestor DP (Folha, Admissão, Férias)</option>
                             <option value="Técnico SST">Técnico SST (PGR, PCMSO, EPIs, CAT)</option>
+                            <option value="Instrutor / Professor">Instrutor / Professor (Gestão EAD & Provas)</option>
+                            <option value="Colaborador / Aluno">Colaborador / Aluno (Acesso Cursos EAD)</option>
                             <option value="Visualizador">Visualizador (Apenas Consulta)</option>
                         </select>
                     </div>
@@ -967,6 +1111,491 @@
         </div>
     </div>
 
+    <!-- PORTAL PÚBLICO: CANAL DE DENÚNCIAS & LINHA ÉTICA (LEI 14.457/2022) -->
+    <div id="portal-denuncias" class="denuncia-portal-overlay" style="display: none;">
+        <div class="denuncia-portal-card">
+            <div class="denuncia-portal-header">
+                <div class="denuncia-portal-title">
+                    <span>🔒 Canal de Denúncias & Linha Ética</span>
+                    <button type="button" class="btn-close-portal" onclick="App.fecharPortalDenuncias()" style="background: none; border: none; font-size: 1.5rem; color: #64748b; cursor: pointer;">&times;</button>
+                </div>
+                <div class="denuncia-portal-desc">
+                    Em conformidade com a <strong>Lei Federal nº 14.457/2022 (CIPA+A)</strong> e Lei Anticorrupção nº 12.846/2013. Este canal é seguro, confidencial e independente para registro de assédio sexual, assédio moral, discriminação e irregularidades. O anonimato é assegurado por criptografia.
+                </div>
+            </div>
+
+            <!-- Tabs: Nova Denúncia vs Acompanhar -->
+            <div class="denuncia-tabs" style="display: flex; gap: 8px; border-bottom: 2px solid #e2e8f0; margin-bottom: 18px; padding-bottom: 8px;">
+                <button type="button" class="btn btn-primary" id="btn-tab-nova-denuncia" onclick="App.alternarTabPortalDenuncia('nova')">
+                    📝 Realizar Denúncia
+                </button>
+                <button type="button" class="btn btn-outline" id="btn-tab-acompanhar-denuncia" onclick="App.alternarTabPortalDenuncia('acompanhar')">
+                    🔍 Acompanhar com Protocolo
+                </button>
+            </div>
+
+            <!-- Tab 1: Fazer Denúncia -->
+            <div id="portal-tab-nova" class="portal-tab-content">
+                <!-- Seção Escolha do Tipo -->
+                <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 10px; color: #1e293b;">
+                    1. Escolha a Modalidade da Denúncia:
+                </div>
+                <div class="denuncia-type-selection">
+                    <div class="denuncia-type-card active" id="card-tipo-anonima" onclick="App.selecionarTipoDenuncia('anonima')">
+                        <div class="denuncia-type-icon">🕵️</div>
+                        <div class="denuncia-type-title">Denúncia 100% Anônima</div>
+                        <div class="denuncia-type-desc">Nenhum dado pessoal (nome, CPF, e-mail) será solicitado ou armazenado. Seu endereço IP não é registrado.</div>
+                    </div>
+                    <div class="denuncia-type-card" id="card-tipo-identificada" onclick="App.selecionarTipoDenuncia('identificada')">
+                        <div class="denuncia-type-icon">👤</div>
+                        <div class="denuncia-type-title">Denúncia Identificada</div>
+                        <div class="denuncia-type-desc">Seus dados ficam sob sigilo estrito do Comitê de Ética. Protegido pela LGPD e garantida imunidade a retaliações.</div>
+                    </div>
+                </div>
+
+                <form id="form-publico-denuncia" onsubmit="App.enviarDenunciaPublica(event)">
+                    <input type="hidden" id="denuncia-tipo" value="anonima">
+
+                    <!-- Campos de Identificação (se identificada) -->
+                    <div id="box-dados-identificados" style="display: none; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+                        <div style="font-weight: 600; font-size: 0.85rem; color: #0369a1; margin-bottom: 10px;">📋 Seus Dados de Identificação (Sigilo Absoluto LGPD):</div>
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label class="form-label">Nome Completo</label>
+                                <input type="text" id="den-nome" class="form-control" placeholder="Seu nome completo">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">E-mail para Notificações</label>
+                                <input type="email" id="den-email" class="form-control" placeholder="seu.email@empresa.com">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Telefone / WhatsApp</label>
+                                <input type="text" id="den-telefone" class="form-control" placeholder="(00) 00000-0000">
+                            </div>
+                            <div class="form-group full-width">
+                                <label class="form-label">Seu Setor / Unidade</label>
+                                <input type="text" id="den-setor" class="form-control" placeholder="Ex: Produção, Usinagem, Administrativo">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Campos da Ocorrência -->
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Categoria do Relato *</label>
+                            <select id="den-categoria" class="form-control" required>
+                                <option value="Assédio Sexual">Assédio Sexual (Lei 14.457/2022)</option>
+                                <option value="Assédio Moral">Assédio Moral / Humilhação</option>
+                                <option value="Discriminação / Preconceito">Discriminação / Preconceito (Raça, Gênero, etc.)</option>
+                                <option value="Condições Inseguras de Trabalho">Condições Inseguras de Trabalho / Risco Grave</option>
+                                <option value="Fraude / Desvio de Conduta">Fraude / Corrupção / Desvio de Conduta</option>
+                                <option value="Descumprimento de Normas / CLT">Descumprimento de Normas Internas / CLT</option>
+                                <option value="Outros">Outros Relatos Éticos</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Nível de Urgência / Gravidade</label>
+                            <select id="den-gravidade" class="form-control">
+                                <option value="Alta">Alta (Risco Iminente / Conduta Grave)</option>
+                                <option value="Média" selected>Média (Investigação Padrão)</option>
+                                <option value="Baixa">Baixa (Informativo / Conduta Leve)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Data Aproximada do Ocorrido</label>
+                            <input type="date" id="den-data-fato" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Local / Setor do Ocorrido</label>
+                            <input type="text" id="den-local" class="form-control" placeholder="Ex: Fábrica 2, Refeitório, Vestiário, Linha 3...">
+                        </div>
+                        <div class="form-group full-width">
+                            <label class="form-label">Nome dos Envolvidos ou Denunciados</label>
+                            <input type="text" id="den-envolvidos" class="form-control" placeholder="Nomes ou cargos das pessoas que cometeram ou presenciaram a conduta">
+                        </div>
+                        <div class="form-group full-width">
+                            <label class="form-label">Relato Detalhado dos Fatos *</label>
+                            <textarea id="den-descricao" class="form-control" rows="5" required placeholder="Descreva com o máximo de detalhes possível: o que aconteceu, quando, com quem e com que frequência..."></textarea>
+                        </div>
+                        <div class="form-group full-width">
+                            <label class="form-label">Testemunhas ou Evidências (Opcional)</label>
+                            <input type="text" id="den-testemunhas" class="form-control" placeholder="Nomes de quem viu, links de documentos, fotos ou e-mails relevantes">
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 14px; background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; font-size: 0.82rem; color: #92400e;">
+                        <label style="display: flex; gap: 8px; align-items: flex-start; cursor: pointer;">
+                            <input type="checkbox" id="den-termo" required style="margin-top: 2px; accent-color: #d97706;">
+                            <span>Declaro que as informações acima são verdadeiras sob as penas da lei e compreendo que o canal é exclusivo para apuração ética e justa.</span>
+                        </label>
+                    </div>
+
+                    <div style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 10px;">
+                        <button type="button" class="btn btn-secondary" onclick="App.fecharPortalDenuncias()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" id="btn-submit-denuncia" style="padding: 10px 24px; font-size: 0.95rem;">
+                            🔒 Enviar Denúncia com Segurança
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Box de Sucesso do Protocolo -->
+                <div id="box-sucesso-denuncia" style="display: none;" class="denuncia-protocol-success">
+                    <div style="font-size: 2.2rem; margin-bottom: 8px;">✅</div>
+                    <div style="font-size: 1.25rem; font-weight: 700; color: #15803d; margin-bottom: 6px;">Denúncia Registrada com Sucesso!</div>
+                    <div style="font-size: 0.88rem; color: #475569; margin-bottom: 16px;">
+                        Guarde seu Protocolo e Chave Secreta. <strong>Eles são a ÚNICA forma de você acompanhar o andamento da apuração sem se identificar.</strong>
+                    </div>
+
+                    <div style="background: #f8fafc; border: 2px dashed #0284c7; padding: 16px; border-radius: 10px; display: inline-block; text-align: left; margin-bottom: 16px;">
+                        <div style="font-size: 0.8rem; color: #64748b; font-weight: 600;">SEU PROTOCOLO:</div>
+                        <div id="sucesso-protocolo" style="font-size: 1.3rem; font-weight: 800; color: #0369a1; font-family: monospace; letter-spacing: 1px;">-</div>
+                        <div style="font-size: 0.8rem; color: #64748b; font-weight: 600; margin-top: 8px;">SUA CHAVE DE ACESSO:</div>
+                        <div id="sucesso-chave" style="font-size: 1.2rem; font-weight: 800; color: #dc2626; font-family: monospace; letter-spacing: 1px;">-</div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <button type="button" class="btn btn-outline" onclick="App.copiarProtocoloChave()">
+                            📋 Copiar Protocolo & Chave
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="App.fecharPortalDenuncias()">
+                            Concluir e Fechar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Acompanhar Denúncia -->
+            <div id="portal-tab-acompanhar" class="portal-tab-content" style="display: none;">
+                <form onsubmit="App.consultarDenunciaPublica(event)" style="display: flex; gap: 10px; align-items: flex-end; margin-bottom: 18px; flex-wrap: wrap;">
+                    <div class="form-group" style="flex: 1; min-width: 180px;">
+                        <label class="form-label">Número do Protocolo</label>
+                        <input type="text" id="busca-protocolo" class="form-control" placeholder="Ex: DEN-2026-7492" required>
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 180px;">
+                        <label class="form-label">Chave de Acesso</label>
+                        <input type="text" id="busca-chave" class="form-control" placeholder="Ex: CHV-8X2M9P" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="padding: 10px 20px; height: 42px;">
+                        🔍 Consultar
+                    </button>
+                </form>
+
+                <div id="resultado-acompanhamento-denuncia"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SALA DE AULA EAD / PLAYER INTERATIVO -->
+    <div id="modal-curso-player" class="modal-backdrop">
+        <div class="modal-box ead-player-modal" style="max-width: 1150px; width: 95vw; height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="background: #0f172a; color: #fff; padding: 14px 20px;">
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span id="player-categoria-badge" class="badge" style="background: #3b82f6; color: #fff;">NR</span>
+                        <h2 id="player-curso-titulo" style="font-size: 1.15rem; font-weight: 700; margin: 0; color: #fff;">Título do Treinamento</h2>
+                    </div>
+                    <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">
+                        Instrutor: <span id="player-instrutor-nome" style="color: #cbd5e1; font-weight: 600;">-</span> | Carga Horária: <span id="player-carga-horaria">-</span>h
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <div style="min-width: 140px; text-align: right;">
+                        <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">PROGRESSO</div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div class="ead-progress-bar" style="flex: 1; height: 8px; background: #334155;">
+                                <div class="ead-progress-fill" id="player-progresso-bar" style="width: 0%;"></div>
+                            </div>
+                            <span id="player-progresso-txt" style="font-size: 0.85rem; font-weight: 800; color: #38bdf8;">0%</span>
+                        </div>
+                    </div>
+                    <button class="modal-close" style="color: #fff; font-size: 1.6rem;">&times;</button>
+                </div>
+            </div>
+
+            <!-- Corpo da Sala de Aula (Layout 2 Colunas) -->
+            <div class="modal-body ead-player-layout" style="padding: 0; flex: 1; overflow: hidden; display: flex;">
+                <!-- Coluna Esquerda: Vídeo + Conteúdo + Abas de Interação (Mural, Fale com o Professor, Avaliação) -->
+                <div class="ead-player-main" style="flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+                    <!-- Player de Vídeo -->
+                    <div id="player-video-wrapper" class="ead-video-container">
+                        <!-- Renderizado dinamicamente (iframe youtube/vimeo ou video html5) -->
+                    </div>
+
+                    <!-- Informações da Aula Atual -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
+                        <div>
+                            <span id="player-aula-ordem" style="font-size: 0.78rem; font-weight: 700; color: #0284c7; text-transform: uppercase;">Aula 1</span>
+                            <h3 id="player-aula-titulo" style="font-size: 1.15rem; font-weight: 700; color: #1e293b; margin: 2px 0 0 0;">Título da Aula</h3>
+                        </div>
+                        <button type="button" id="btn-concluir-aula" class="btn btn-primary" onclick="App.marcarAulaAtualConcluida()" style="padding: 9px 18px; font-weight: 600;">
+                            ✅ Concluir esta Aula e Avançar
+                        </button>
+                    </div>
+
+                    <div id="player-aula-conteudo" style="font-size: 0.9rem; color: #475569; line-height: 1.6;">
+                        <!-- Conteúdo da aula -->
+                    </div>
+
+                    <!-- Abas Inferiores: Mural, Fale com o Professor, Avaliação / Prova -->
+                    <div class="ead-tabs-wrapper" style="margin-top: 10px;">
+                        <div class="ead-tabs-nav">
+                            <button type="button" class="ead-tab-btn active" id="player-nav-mural" onclick="App.alternarTabPlayer('mural')">📋 Mural de Avisos</button>
+                            <button type="button" class="ead-tab-btn" id="player-nav-duvidas" onclick="App.alternarTabPlayer('duvidas')">💬 Fale com o Professor (<span id="player-duvidas-count">0</span>)</button>
+                            <button type="button" class="ead-tab-btn" id="player-nav-prova" onclick="App.alternarTabPlayer('prova')">📝 Avaliação Prática & Certificado</button>
+                        </div>
+
+                        <!-- Tab Content: Mural -->
+                        <div id="player-tab-mural" class="ead-tab-pane active" style="padding-top: 14px;">
+                            <div id="player-mural-form-wrapper" style="margin-bottom: 16px;">
+                                <!-- Exibido apenas para Instrutor/Admin -->
+                            </div>
+                            <div id="player-mural-list" class="ead-mural-list"></div>
+                        </div>
+
+                        <!-- Tab Content: Dúvidas / Fale com o Professor -->
+                        <div id="player-tab-duvidas" class="ead-tab-pane" style="padding-top: 14px; display: none;">
+                            <form onsubmit="App.enviarDuvidaEad(event)" style="margin-bottom: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+                                <div style="font-weight: 600; font-size: 0.88rem; margin-bottom: 6px; color: #1e293b;">Enviar dúvida diretamente ao instrutor:</div>
+                                <div style="display: flex; gap: 8px;">
+                                    <input type="text" id="input-nova-duvida" class="form-control" placeholder="Digite sua pergunta sobre esta aula ou norma..." required>
+                                    <button type="submit" class="btn btn-primary" style="white-space: nowrap;">Perguntar 📤</button>
+                                </div>
+                            </form>
+                            <div id="player-duvidas-list" class="ead-duvidas-list"></div>
+                        </div>
+
+                        <!-- Tab Content: Avaliação & Certificado -->
+                        <div id="player-tab-prova" class="ead-tab-pane" style="padding-top: 14px; display: none;">
+                            <div id="player-prova-status-card" class="panel-card" style="padding: 20px; text-align: center;">
+                                <!-- Renderizado com status de conclusão das aulas, botão para iniciar prova ou botão de emitir certificado -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coluna Direita: Playlist de Aulas -->
+                <div class="ead-player-sidebar" style="width: 320px; background: #f8fafc; border-left: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden;">
+                    <div style="padding: 12px 16px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-weight: 700; font-size: 0.85rem; color: #334155; display: flex; justify-content: space-between;">
+                        <span>CONTEÚDO PROGRAMÁTICO</span>
+                        <span id="player-aulas-total-count" style="color: #64748b;">0 Aulas</span>
+                    </div>
+                    <div id="player-aulas-playlist" style="flex: 1; overflow-y: auto; padding: 8px;">
+                        <!-- Itens das aulas preenchidos dinamicamente -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: AVALIAÇÃO PRÁTICA EAD -->
+    <div id="modal-prova-ead" class="modal-backdrop">
+        <div class="modal-box" style="max-width: 750px;">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="prova-titulo">📝 Avaliação de Conhecimento Prático</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+                        Nota de corte para aprovação e certificação: <strong>70%</strong>. Leia com atenção antes de responder.
+                    </div>
+                </div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form onsubmit="App.submeterProvaEad(event)">
+                <input type="hidden" id="prova-curso-id">
+                <input type="hidden" id="prova-matricula-id">
+                <div class="modal-body" id="prova-questoes-container" style="max-height: 65vh; overflow-y: auto; padding: 20px;">
+                    <!-- Perguntas e alternativas -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-modal-close>Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btn-finalizar-prova" style="padding: 10px 24px; font-weight: 700;">
+                        Finalizar e Enviar Prova 🚀
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: NOVO CURSO / TREINAMENTO EAD -->
+    <div id="modal-novo-curso-ead" class="modal-backdrop">
+        <div class="modal-box" style="max-width: 850px;">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-curso-ead-title">➕ Cadastrar Treinamento EAD</div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form onsubmit="App.salvarNovoCursoEad(event)">
+                <input type="hidden" id="curso-ead-id">
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding: 18px;">
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label class="form-label">Título do Treinamento *</label>
+                            <input type="text" id="cad-curso-titulo" class="form-control" required placeholder="Ex: NR-33 - Segurança e Saúde nos Trabalhos em Espaços Confinados">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Categoria / Norma Regulamentadora *</label>
+                            <select id="cad-curso-categoria" class="form-control" required>
+                                <option value="NR-01">NR-01 - Disposições Gerais e PGR</option>
+                                <option value="NR-05">NR-05 - CIPA+A (Prevenção ao Assédio)</option>
+                                <option value="NR-06">NR-06 - EPIs</option>
+                                <option value="NR-10">NR-10 - Segurança em Eletricidade</option>
+                                <option value="NR-12">NR-12 - Máquinas e Equipamentos</option>
+                                <option value="NR-17">NR-17 - Ergonomia</option>
+                                <option value="NR-18">NR-18 - Construção Civil</option>
+                                <option value="NR-33">NR-33 - Espaços Confinados</option>
+                                <option value="NR-35">NR-35 - Trabalho em Altura</option>
+                                <option value="Outros">Outros / Integração Geral</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Carga Horária (Horas) *</label>
+                            <input type="number" id="cad-curso-horas" class="form-control" required min="1" max="120" value="8">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Validade do Treinamento (Meses)</label>
+                            <input type="number" id="cad-curso-validade" class="form-control" required min="1" max="60" value="24">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Nota Mínima para Aprovação (%)</label>
+                            <input type="number" id="cad-curso-nota" class="form-control" required min="50" max="100" value="70">
+                        </div>
+                        <div class="form-group full-width">
+                            <label class="form-label">Descrição e Objetivos Pedagógicos *</label>
+                            <textarea id="cad-curso-descricao" class="form-control" rows="3" required placeholder="Descreva os objetivos, público-alvo e conformidade com NR-01 Anexo II..."></textarea>
+                        </div>
+                        <div class="form-group full-width">
+                            <label class="form-label">Conteúdo Programático / Ementa Oficial (NR-01 Anexo II) *</label>
+                            <textarea id="cad-curso-ementa" class="form-control" rows="4" required placeholder="Módulos e itens que constarão no verso do certificado impresso..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Construtor de Aulas e Vídeos -->
+                    <div style="margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <div>
+                                <div style="font-weight: 700; font-size: 0.95rem; color: #1e293b;">
+                                    🎬 Videoaulas do Treinamento (Upload e Links Externos)
+                                </div>
+                                <div style="font-size: 0.78rem; color: var(--text-muted);">
+                                    Suporta upload direto (.mp4, .webm) e links do YouTube, Vimeo e Google Drive.
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-outline" onclick="App.adicionarLinhaAula()" style="font-size: 0.8rem; padding: 6px 12px;">
+                                ➕ Adicionar Aula
+                            </button>
+                        </div>
+                        <div id="cad-curso-aulas-container" style="display: flex; flex-direction: column; gap: 12px;">
+                            <!-- Linhas de aulas geradas dinamicamente -->
+                        </div>
+                    </div>
+
+                    <!-- Construtor de Questões da Prova -->
+                    <div style="margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <div>
+                                <div style="font-weight: 700; font-size: 0.95rem; color: #1e293b;">
+                                    📝 Questões da Avaliação Prática
+                                </div>
+                                <div style="font-size: 0.78rem; color: var(--text-muted);">
+                                    Cadastre perguntas de múltipla escolha para certificar o aprendizado do colaborador.
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-outline" onclick="App.adicionarLinhaQuestao()" style="font-size: 0.8rem; padding: 6px 12px;">
+                                ➕ Adicionar Questão
+                            </button>
+                        </div>
+                        <div id="cad-curso-questoes-container" style="display: flex; flex-direction: column; gap: 14px;">
+                            <!-- Perguntas geradas dinamicamente -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-modal-close>Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btn-salvar-curso-ead">Salvar e Publicar Treinamento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: MATRICULAR COLABORADOR NO EAD -->
+    <div id="modal-matricular-ead" class="modal-backdrop">
+        <div class="modal-box" style="max-width: 500px;">
+            <div class="modal-header">
+                <div class="modal-title">👥 Matricular Colaborador em Treinamento</div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form onsubmit="App.salvarMatriculaEad(event)">
+                <div class="modal-body form-grid">
+                    <div class="form-group full-width">
+                        <label class="form-label">Treinamento EAD *</label>
+                        <select id="mat-curso-id" class="form-control" required></select>
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Colaborador / Aluno *</label>
+                        <select id="mat-colaborador-id" class="form-control" required></select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-modal-close>Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Confirmar Matrícula</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: DETALHES E TRAMITAÇÃO DA DENÚNCIA (COMITÊ DE ÉTICA) -->
+    <div id="modal-detalhes-denuncia" class="modal-backdrop">
+        <div class="modal-box" style="max-width: 800px;">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">⚖️ Tramitação Ética da Denúncia</div>
+                    <div id="modal-denuncia-subtitulo" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;"></div>
+                </div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form onsubmit="App.salvarTramitacaoDenuncia(event)">
+                <input type="hidden" id="tramitacao-denuncia-id">
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding: 18px;">
+                    <!-- Dados do Relato -->
+                    <div id="detalhes-denuncia-content" style="margin-bottom: 20px;"></div>
+
+                    <!-- Formulário de Tramitação do Comitê -->
+                    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px;">
+                        <div style="font-weight: 700; font-size: 0.95rem; color: #1e293b; margin-bottom: 12px;">
+                            🏛️ Decisão e Parecer do Comitê de Ética / CIPA+A
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Novo Status do Processo *</label>
+                                <select id="tramitacao-status" class="form-control" required>
+                                    <option value="Recebida">Recebida</option>
+                                    <option value="Em Investigação">Em Investigação</option>
+                                    <option value="Procedente">Procedente</option>
+                                    <option value="Improcedente">Improcedente</option>
+                                    <option value="Concluída">Concluída</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Medidas Disciplinares / Ações Tomadas</label>
+                                <input type="text" id="tramitacao-medidas" class="form-control" placeholder="Ex: Advertência, Suspensão, Treinamento, Demissão...">
+                            </div>
+                            <div class="form-group full-width">
+                                <label class="form-label">Resposta Pública ao Denunciante (Visível via Protocolo) *</label>
+                                <textarea id="tramitacao-resposta" class="form-control" rows="3" required placeholder="Escreva a resposta e andamento que o denunciante visualizará na consulta externa..."></textarea>
+                            </div>
+                            <div class="form-group full-width">
+                                <label class="form-label">Notas Internas Confidenciais do Comitê (Apenas Gestão)</label>
+                                <textarea id="tramitacao-notas" class="form-control" rows="2" placeholder="Anotações sigilosas de reuniões, perícias e evidências..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-modal-close>Fechar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Tramitação e Notificar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- CONTAINER DE IMPRESSÃO (A4 REGULAMENTAR) -->
     <div id="print-container"></div>
 
@@ -974,7 +1603,7 @@
     <div id="toast-container" class="toast-container"></div>
 
     <!-- SCRIPTS -->
-    <script src="/js/print.js"></script>
-    <script src="/js/app.js"></script>
+    <script src="/js/print.js?v=2"></script>
+    <script src="/js/app.js?v=2"></script>
 </body>
 </html>
