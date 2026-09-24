@@ -2175,9 +2175,22 @@ const App = {
 
             const form = document.getElementById('form-publico-denuncia');
             if (form) form.reset();
+
+            const errBox = document.getElementById('den-erro-feedback');
+            if (errBox) errBox.style.display = 'none';
+
+            const boxTermo = document.getElementById('den-box-termo');
+            if (boxTermo) {
+                boxTermo.style.borderColor = '#fde68a';
+                boxTermo.style.backgroundColor = '#fffbeb';
+            }
+
             const successBox = document.getElementById('box-sucesso-denuncia');
             if (successBox) successBox.style.display = 'none';
             if (form) form.style.display = 'block';
+
+            const card = document.querySelector('.denuncia-portal-card');
+            if (card) card.scrollTop = 0;
         }
     },
 
@@ -2225,15 +2238,82 @@ const App = {
     },
 
     async enviarDenunciaPublica(e) {
-        if (e) e.preventDefault();
-        const tipo = document.getElementById('denuncia-tipo').value;
-        const categoria = document.getElementById('den-categoria').value;
-        const gravidade = document.getElementById('den-gravidade').value;
-        const data_fato = document.getElementById('den-data-fato').value;
-        const local_fato = document.getElementById('den-local').value.trim();
-        const envolvidos = document.getElementById('den-envolvidos').value.trim();
-        const descricao = document.getElementById('den-descricao').value.trim();
-        const testemunhas = document.getElementById('den-testemunhas').value.trim();
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        const erroFeedback = document.getElementById('den-erro-feedback');
+        if (erroFeedback) erroFeedback.style.display = 'none';
+
+        const boxTermo = document.getElementById('den-box-termo');
+        if (boxTermo) {
+            boxTermo.style.borderColor = '#fde68a';
+            boxTermo.style.backgroundColor = '#fffbeb';
+        }
+
+        const tipo = document.getElementById('denuncia-tipo')?.value || 'anonima';
+        const categoria = document.getElementById('den-categoria')?.value || '';
+        const gravidade = document.getElementById('den-gravidade')?.value || 'Média';
+        const data_fato = document.getElementById('den-data-fato')?.value || '';
+        const local_fato = document.getElementById('den-local')?.value?.trim() || '';
+        const envolvidos = document.getElementById('den-envolvidos')?.value?.trim() || '';
+        const descricaoEl = document.getElementById('den-descricao');
+        const descricao = descricaoEl ? descricaoEl.value.trim() : '';
+        const testemunhas = document.getElementById('den-testemunhas')?.value?.trim() || '';
+        const termoEl = document.getElementById('den-termo');
+
+        // Validação 1: Descrição detalhada dos fatos
+        if (!descricao) {
+            if (erroFeedback) {
+                erroFeedback.innerText = '⚠️ Por favor, descreva detalhadamente os fatos ocorridos no campo "Relato Detalhado dos Fatos".';
+                erroFeedback.style.display = 'block';
+            }
+            if (descricaoEl) {
+                descricaoEl.focus();
+                descricaoEl.style.borderColor = '#ef4444';
+                descricaoEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            this.showToast('Por favor, preencha o relato dos fatos para enviar.', 'warning');
+            return;
+        } else if (descricaoEl) {
+            descricaoEl.style.borderColor = '';
+        }
+
+        // Validação 2: Termo de veracidade
+        if (!termoEl || !termoEl.checked) {
+            if (erroFeedback) {
+                erroFeedback.innerText = '⚠️ É obrigatório declarar a veracidade das informações marcando a caixa de seleção acima.';
+                erroFeedback.style.display = 'block';
+            }
+            if (boxTermo) {
+                boxTermo.style.borderColor = '#ef4444';
+                boxTermo.style.backgroundColor = '#fef2f2';
+                boxTermo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            if (termoEl) termoEl.focus();
+            this.showToast('Marque a caixa de declaração de veracidade para prosseguir.', 'warning');
+            return;
+        }
+
+        // Validação 3: Se identificada, nome obrigatório
+        if (tipo === 'identificada') {
+            const nomeEl = document.getElementById('den-nome');
+            const nome = nomeEl ? nomeEl.value.trim() : '';
+            if (!nome) {
+                if (erroFeedback) {
+                    erroFeedback.innerText = '⚠️ Na denúncia identificada, por favor informe seu Nome Completo.';
+                    erroFeedback.style.display = 'block';
+                }
+                if (nomeEl) {
+                    nomeEl.focus();
+                    nomeEl.style.borderColor = '#ef4444';
+                    nomeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                this.showToast('Por favor, informe seu nome na denúncia identificada.', 'warning');
+                return;
+            }
+        }
 
         const payload = {
             tipo,
@@ -2247,16 +2327,19 @@ const App = {
         };
 
         if (tipo === 'identificada') {
-            payload.nome = document.getElementById('den-nome').value.trim();
-            payload.email = document.getElementById('den-email').value.trim();
-            payload.telefone = document.getElementById('den-telefone').value.trim();
-            payload.setor = document.getElementById('den-setor').value.trim();
+            payload.nome = document.getElementById('den-nome')?.value?.trim() || '';
+            payload.email = document.getElementById('den-email')?.value?.trim() || '';
+            payload.telefone = document.getElementById('den-telefone')?.value?.trim() || '';
+            payload.setor = document.getElementById('den-setor')?.value?.trim() || '';
         }
 
+        const btn = document.getElementById('btn-submit-denuncia');
+
         try {
-            const btn = document.getElementById('btn-submit-denuncia');
-            btn.disabled = true;
-            btn.innerText = 'Criptografando e Enviando...';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '🔒 Criptografando e Enviando com Segurança...';
+            }
 
             const res = await fetch('/api/denuncias', {
                 method: 'POST',
@@ -2267,24 +2350,42 @@ const App = {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Erro ao enviar relato.');
 
-            this._ultimoProtocolo = data.denuncia.protocolo;
-            this._ultimaChave = data.denuncia.chave_acesso;
+            const protocolo = data.protocolo || (data.denuncia && data.denuncia.protocolo) || '-';
+            const chave = data.chave_acesso || (data.denuncia && data.denuncia.chave_acesso) || '-';
 
-            document.getElementById('sucesso-protocolo').innerText = data.denuncia.protocolo;
-            document.getElementById('sucesso-chave').innerText = data.denuncia.chave_acesso;
+            this._ultimoProtocolo = protocolo;
+            this._ultimaChave = chave;
 
-            document.getElementById('form-publico-denuncia').style.display = 'none';
-            document.getElementById('box-sucesso-denuncia').style.display = 'block';
+            const elProto = document.getElementById('sucesso-protocolo');
+            if (elProto) elProto.innerText = protocolo;
 
-            this.showToast('Denúncia registrada com sucesso e total sigilo!', 'success');
+            const elChv = document.getElementById('sucesso-chave');
+            if (elChv) elChv.innerText = chave;
+
+            const form = document.getElementById('form-publico-denuncia');
+            if (form) form.style.display = 'none';
+
+            const boxSucesso = document.getElementById('box-sucesso-denuncia');
+            if (boxSucesso) boxSucesso.style.display = 'block';
+
+            // Rolagem suave de volta ao topo do card para exibir o protocolo com destaque imediato
+            const portalCard = document.querySelector('.denuncia-portal-card');
+            if (portalCard) {
+                portalCard.scrollTop = 0;
+            }
+
+            this.showToast('✅ Denúncia registrada com sucesso e total sigilo!', 'success');
         } catch (err) {
             console.error('Erro ao enviar denúncia:', err);
+            if (erroFeedback) {
+                erroFeedback.innerText = '❌ ' + (err.message || 'Erro ao enviar denúncia ao servidor.');
+                erroFeedback.style.display = 'block';
+            }
             this.showToast(err.message || 'Erro ao registrar denúncia.', 'danger');
         } finally {
-            const btn = document.getElementById('btn-submit-denuncia');
             if (btn) {
                 btn.disabled = false;
-                btn.innerText = '🔒 Enviar Denúncia com Segurança';
+                btn.innerHTML = '🔒 Enviar Denúncia com Segurança';
             }
         }
     },

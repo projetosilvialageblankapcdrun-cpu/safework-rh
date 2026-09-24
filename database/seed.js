@@ -12,7 +12,15 @@ function runSeed() {
 
     // Limpar tabelas existentes para garantir um estado limpo
     db.exec(`
-        DELETE FROM usuarios;
+        DELETE FROM denuncias;
+        DELETE FROM ead_duvidas;
+        DELETE FROM ead_mural;
+        DELETE FROM ead_respostas;
+        DELETE FROM ead_avaliacoes;
+        DELETE FROM ead_aulas_concluidas;
+        DELETE FROM ead_matriculas;
+        DELETE FROM ead_aulas;
+        DELETE FROM ead_cursos;
         DELETE FROM esocial_eventos;
         DELETE FROM ordens_servico_nr01;
         DELETE FROM acidentes_cat;
@@ -32,7 +40,13 @@ function runSeed() {
         DELETE FROM setores;
         DELETE FROM empresas;
         DELETE FROM sqlite_sequence;
+        DROP TABLE IF EXISTS usuarios;
     `);
+
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const schemaSql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf-8');
+    db.exec(schemaSql);
 
     // 1. EMPRESA MODELO
     db.prepare(`
@@ -400,6 +414,292 @@ function runSeed() {
         INSERT INTO usuarios (nome, email, login, senha_hash, salt, perfil, ativo)
         VALUES ('Eng. Marcos Vinícius Prado', 'marcos.sst@metalsul.com.br', 'marcos.sst', ?, ?, 'Técnico SST', 1)
     `).run(uSst.hash, uSst.salt);
+
+    const uProf = hashPassword('prof123');
+    db.prepare(`
+        INSERT INTO usuarios (nome, email, login, senha_hash, salt, perfil, ativo)
+        VALUES ('Prof. Ricardo Santos (Instrutor)', 'ricardo.instrutor@metalsul.com.br', 'prof.ricardo', ?, ?, 'Instrutor / Professor', 1)
+    `).run(uProf.hash, uProf.salt);
+
+    const uAluno = hashPassword('aluno123');
+    db.prepare(`
+        INSERT INTO usuarios (nome, email, login, senha_hash, salt, perfil, ativo)
+        VALUES ('Ana Paula Ferreira (Aluna)', 'ana.aluna@metalsul.com.br', 'ana.aluna', ?, ?, 'Colaborador / Aluno', 1)
+    `).run(uAluno.hash, uAluno.salt);
+
+    // 19. ACADEMIA CORPORATIVA & CURSOS EAD (NR-01 ANEXO II)
+    // Curso 1: NR-35 Trabalho em Altura
+    db.prepare(`
+        INSERT INTO ead_cursos (id, titulo, descricao, categoria_nr, carga_horaria_horas, instrutor_id, thumbnail_url, nota_aprovacao_minima, conteudo_programatico, publico_alvo, ativo)
+        VALUES (1, 'NR-35: Trabalho em Altura - Procedimentos, EPIs e Resgate', 
+                'Capacitação completa em trabalho em altura conforme a Norma Regulamentadora NR-35 e diretrizes pedagógicas da NR-01 Anexo II. Abrange análise de risco, sistemas de ancoragem, retenção de quedas e resposta a emergências.',
+                'NR-35', 8, 4, 'https://images.unsplash.com/photo-1541888946425-d0fbb1861593?w=600', 70.0,
+                '1. Normas e regulamentos aplicáveis ao trabalho em altura;\n2. Análise de Risco (APR) e condições impeditivas;\n3. Sistemas de Proteção Coletiva e Individual (SPCQ e SPIQ);\n4. Equipamentos de Proteção Individual (EPIs): seleção, inspeção, conservação e limitação de uso;\n5. Acidentes típicos e condutas em situações de emergência e noções de primeiros socorros.',
+                'Trabalhadores da produção, manutenção mecânica, caldeiraria e operadores em estruturas elevadas.', 1)
+    `).run();
+
+    // Aulas do Curso 1
+    const aulasNr35 = [
+        [1, 1, 1, 'Módulo 1: Introdução à NR-35 e Análise Preliminar de Risco (APR)', 'Fundamentos legais da NR-35, definição de trabalho em altura acima de 2,00 metros e preenchimento da APR e Permissão de Trabalho (PT).', 'link_externo', 'https://www.youtube.com/watch?v=ScMzIvxBSi4', 25, 'Guia_APR_Trabalho_Altura.pdf'],
+        [2, 1, 2, 'Módulo 2: Equipamentos de Proteção Individual (EPIs) e Fator de Queda', 'Cinturão de segurança tipo paraquedista, talabartes com absorvedor de energia (ABS), trava-quedas e cálculo da Zona Livre de Queda (ZLQ).', 'link_externo', 'https://www.youtube.com/watch?v=ScMzIvxBSi4', 30, 'Manual_Inspecao_Cinturao.pdf'],
+        [3, 1, 3, 'Módulo 3: Sistemas de Ancoragem e Linhas de Vida (NR-35 / NBR 16325)', 'Tipos de pontos de ancoragem (Classes A, B, C e D), linhas de vida temporárias e definitivas, e resistência mínima de 15 kN.', 'link_externo', 'https://www.youtube.com/watch?v=ScMzIvxBSi4', 25, 'Catalogo_Ancoragens.pdf'],
+        [4, 1, 4, 'Módulo 4: Plano de Resgate e Emergências em Altura', 'Procedimentos de resgate técnico, síndrome da suspensão inerte (trauma de suspensão) e primeiros socorros no local de trabalho.', 'link_externo', 'https://www.youtube.com/watch?v=ScMzIvxBSi4', 35, 'Protocolo_Resgate_Emergencia.pdf']
+    ];
+
+    for (const a of aulasNr35) {
+        db.prepare(`
+            INSERT INTO ead_aulas (id, curso_id, ordem, titulo, descricao, tipo_video, video_url, duracao_minutos, material_apoio)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(...a);
+    }
+
+    // Avaliação do Curso 1 (NR-35)
+    const questoesNr35 = JSON.stringify([
+        {
+            id: 1,
+            enunciado: 'De acordo com a NR-35, considera-se trabalho em altura toda atividade executada acima de qual desnível em relação ao nível inferior?',
+            alternativas: [
+                '1,50 metro com risco de queda',
+                '2,00 metros onde haja risco de queda',
+                '2,50 metros com andaimes',
+                '3,00 metros obrigatoriamente'
+            ],
+            correta: 1,
+            pontos: 25,
+            explicacao: 'O item 35.1.2 estabelece que trabalho em altura é toda atividade executada acima de 2,00 m (dois metros) do nível inferior, onde haja risco de queda.'
+        },
+        {
+            id: 2,
+            enunciado: 'Qual é o documento formal obrigatório prévio que deve ser emitido antes de iniciar qualquer trabalho em altura não rotineiro?',
+            alternativas: [
+                'Atestado de Saúde Ocupacional (ASO) apenas',
+                'Comunicação de Acidente de Trabalho (CAT)',
+                'Permissão de Trabalho (PT) acompanhada da APR',
+                'Ficha de Registro de Frequência'
+            ],
+            correta: 2,
+            pontos: 25,
+            explicacao: 'A Permissão de Trabalho (PT) e a Análise Preliminar de Risco (APR) são obrigatórias para serviços não rotineiros conforme item 35.4.7.'
+        },
+        {
+            id: 3,
+            enunciado: 'O que representa o "Fator de Queda" (FQ) e qual é a situação mais crítica em caso de queda?',
+            alternativas: [
+                'FQ = 0, quando o ponto de ancoragem está no nível do chão',
+                'FQ = 1, quando a ancoragem está acima da cabeça',
+                'FQ = 2, quando o trabalhador está ancorado abaixo dos seus pés (maior impacto no corpo)',
+                'FQ não influencia o impacto suportado pelo trabalhador'
+            ],
+            correta: 2,
+            pontos: 25,
+            explicacao: 'FQ = 2 ocorre quando o ponto de fixação fica nos pés, gerando o dobro da desaceleração e maior esforço cinético sobre o corpo.'
+        },
+        {
+            id: 4,
+            enunciado: 'Qual a principal conduta inicial de primeiros socorros ao resgatar um trabalhador vítima de Síndrome da Suspensão Inerte?',
+            alternativas: [
+                'Deitá-lo imediatamente em posição horizontal estendida',
+                'Mantê-lo em posição semi-sentada (fowler) para retorno venoso gradual, evitando sobrecarga cardíaca',
+                'Oferecer líquidos imediatamente sem avaliar os sinais vitais',
+                'Pendurá-lo novamente até a chegada do resgate externo'
+            ],
+            correta: 1,
+            pontos: 25,
+            explicacao: 'A posição semi-sentada evita o refluxo maciço súbito de sangue estagnado nos membros inferiores diretamente para o coração (choque por reperfusão).'
+        }
+    ]);
+
+    db.prepare(`
+        INSERT INTO ead_avaliacoes (id, curso_id, titulo, descricao, nota_minima, questoes_json)
+        VALUES (1, 1, 'Avaliação de Aproveitamento e Teoria Técnica (NR-35)', 
+                'Questionário de avaliação teórica e prática conforme os critérios estabelecidos no Anexo II da NR-01. Nota mínima de aprovação: 70%.',
+                70.0, ?)
+    `).run(questoesNr35);
+
+    // Matrículas Curso 1
+    // João Silva: Concluído e aprovado
+    db.prepare(`
+        INSERT INTO ead_matriculas (id, curso_id, colaborador_id, progresso_pct, status, nota_final, data_matricula, data_conclusao, certificado_codigo)
+        VALUES (1, 1, 1, 100.0, 'Aprovado', 100.0, '2026-09-01 08:00:00', '2026-09-10 16:30:00', 'CERT-NR35-2026-98102')
+    `).run();
+
+    // Aulas concluídas por João Silva
+    for (let i = 1; i <= 4; i++) {
+        db.prepare(`INSERT INTO ead_aulas_concluidas (matricula_id, aula_id) VALUES (1, ?)`).run(i);
+    }
+
+    // Marcos Vinícius (Eletricista): 50% concluído
+    db.prepare(`
+        INSERT INTO ead_matriculas (id, curso_id, colaborador_id, progresso_pct, status, nota_final, data_matricula, data_conclusao, certificado_codigo)
+        VALUES (2, 1, 5, 50.0, 'Em Andamento', NULL, '2026-09-15 09:30:00', NULL, NULL)
+    `).run();
+    db.prepare(`INSERT INTO ead_aulas_concluidas (matricula_id, aula_id) VALUES (2, 1)`).run();
+    db.prepare(`INSERT INTO ead_aulas_concluidas (matricula_id, aula_id) VALUES (2, 2)`).run();
+
+    // Mural do Curso 1
+    db.prepare(`
+        INSERT INTO ead_mural (curso_id, autor_id, titulo, mensagem, importante, data_publicacao)
+        VALUES (1, 4, '📢 Bem-vindos ao Curso NR-35 (Turma 2026/02)', 
+                'Olá a todos! Este curso é obrigatório para todos os profissionais que atuam em manutenções e caldeiraria. Assistam aos 4 módulos com atenção antes de realizar o questionário final de aprovação.', 1, '2026-09-01 08:30:00')
+    `).run();
+    db.prepare(`
+        INSERT INTO ead_mural (curso_id, autor_id, titulo, mensagem, importante, data_publicacao)
+        VALUES (1, 4, '🏗️ Prática Presencial Obrigatória em Torre (NR-01 Anexo II)', 
+                'Lembrando que após a conclusão das videoaulas teóricas e aprovação no teste, todos os alunos deverão comparecer na sexta-feira para o treinamento prático de nós, amarrações e resgate no pátio técnico.', 0, '2026-09-05 14:00:00')
+    `).run();
+
+    // Dúvidas do Curso 1
+    db.prepare(`
+        INSERT INTO ead_duvidas (curso_id, colaborador_id, pergunta, resposta, respondida_por, data_pergunta, data_resposta)
+        VALUES (1, 5, 'Professor, em andaimes fachadeiros providos de guarda-corpo padrão de 1,20m e rodapé, o uso do talabarte duplo conectado na linha de vida vertical continua sendo obrigatório?',
+                'Excelente dúvida, Marcos! Sim, continua sendo obrigatório durante todo o tempo de montagem, desmontagem e deslocamento. Além disso, quando o operador necessitar se projetar para fora da estrutura, a ancoragem deve ser 100% contínua.',
+                4, '2026-09-16 11:20:00', '2026-09-16 15:45:00')
+    `).run();
+
+    // Curso 2: NR-01 & CIPA+A (Prevenção ao Assédio Sexual e Moral - Lei 14.457/2022)
+    db.prepare(`
+        INSERT INTO ead_cursos (id, titulo, descricao, categoria_nr, carga_horaria_horas, instrutor_id, thumbnail_url, nota_aprovacao_minima, conteudo_programatico, publico_alvo, ativo)
+        VALUES (2, 'NR-01 & CIPA+A: Prevenção ao Assédio Sexual, Moral e Violência no Trabalho (Lei 14.457/2022)',
+                'Treinamento corporativo obrigatório de sensibilização e capacitação sobre conduta ética, diversidade, enfrentamento ao assédio sexual, moral e funcionamento da Linha Ética/Canal de Denúncias da empresa.',
+                'CIPA+A', 4, 4, 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=600', 70.0,
+                '1. A Lei nº 14.457/2022 e o novo papel da CIPA+A;\n2. Caracterização e diferenças entre Assédio Moral e Assédio Sexual no ambiente de trabalho;\n3. Impactos na saúde mental, física e desempenho profissional;\n4. Regras de conduta da empresa e cultura do respeito;\n5. Como utilizar o Canal de Denúncias Sigiloso e proteção contra retaliações.',
+                'Todos os colaboradores, líderes, supervisores e gestores da empresa.', 1)
+    `).run();
+
+    // Aulas do Curso 2
+    db.prepare(`
+        INSERT INTO ead_aulas (id, curso_id, ordem, titulo, descricao, tipo_video, video_url, duracao_minutos, material_apoio)
+        VALUES (5, 2, 1, 'Módulo 1: A Lei 14.457/2022 e a Transformação da CIPA em CIPA+A', 'Obrigações legais das empresas, inclusão do tema assédio nas atribuições da CIPA e dever de prevenção.', 'link_externo', 'https://www.youtube.com/watch?v=ScMzIvxBSi4', 20, 'Cartilha_Lei_14457_CIPAA.pdf')
+    `).run();
+    db.prepare(`
+        INSERT INTO ead_aulas (id, curso_id, ordem, titulo, descricao, tipo_video, video_url, duracao_minutos, material_apoio)
+        VALUES (6, 2, 2, 'Módulo 2: Identificando Situações de Assédio e Condutas Inaceitáveis', 'Exemplos práticos de assédio vertical, horizontal, condutas hostis, intimidações e piadas discriminatórias.', 'link_externo', 'https://www.youtube.com/watch?v=ScMzIvxBSi4', 25, 'Guia_Conduta_Etica_MetalSul.pdf')
+    `).run();
+    db.prepare(`
+        INSERT INTO ead_aulas (id, curso_id, ordem, titulo, descricao, tipo_video, video_url, duracao_minutos, material_apoio)
+        VALUES (7, 2, 3, 'Módulo 3: O Canal de Denúncias e as Garantias de Anonimato e Proteção', 'Como relatar fatos com segurança, sigilo absoluto garantido pela LGPD e fluxo de apuração pelo Comitê de Ética.', 'link_externo', 'https://www.youtube.com/watch?v=ScMzIvxBSi4', 20, 'Manual_Canal_Denuncias.pdf')
+    `).run();
+
+    // Avaliação Curso 2
+    const questoesCipaa = JSON.stringify([
+        {
+            id: 1,
+            enunciado: 'A Lei Federal nº 14.457/2022 incluiu uma nova atribuição prioritária na comissão de prevenção da empresa, que passou a ser chamada de:',
+            alternativas: [
+                'CIPA - Comissão Interna de Primeiros Atendimentos',
+                'CIPA+A - Comissão Interna de Prevenção de Acidentes e de Assédio',
+                'CIPAT - Comissão Interna de Prevenção de Acidentes no Trabalho',
+                'SESMT Comunitário'
+            ],
+            correta: 1,
+            pontos: 50,
+            explicacao: 'A lei alterou a CLT para que a CIPA seja expressamente voltada à Prevenção de Acidentes e de Assédio (CIPA+A).'
+        },
+        {
+            id: 2,
+            enunciado: 'Ao realizar um relato no Canal de Denúncias da empresa, o colaborador pode optar pelo sigilo e anonimato?',
+            alternativas: [
+                'Não, toda denúncia precisa obrigatoriamente do CPF do denunciante',
+                'Sim, o canal garante a opção de denúncia 100% anônima, gerando um protocolo de acompanhamento seguro',
+                'Apenas se a gerência geral autorizar previamente',
+                'O anonimato só é aceito em casos com processo judicial em andamento'
+            ],
+            correta: 1,
+            pontos: 50,
+            explicacao: 'A Lei 14.457/2022 e a LGPD exigem procedimentos que garantam o anonimato e a não retaliação do denunciante.'
+        }
+    ]);
+
+    db.prepare(`
+        INSERT INTO ead_avaliacoes (id, curso_id, titulo, descricao, nota_minima, questoes_json)
+        VALUES (2, 2, 'Avaliação de Sensibilização e Ética no Trabalho (CIPA+A)', 
+                'Verificação de compreensão dos conceitos de respeito, integridade e uso do canal ético. Nota mínima: 70%.',
+                70.0, ?)
+    `).run(questoesCipaa);
+
+    // Matrícula Ana Paula (Curso 2)
+    db.prepare(`
+        INSERT INTO ead_matriculas (id, curso_id, colaborador_id, progresso_pct, status, nota_final, data_matricula, data_conclusao, certificado_codigo)
+        VALUES (3, 2, 4, 100.0, 'Aprovado', 100.0, '2026-09-02 09:00:00', '2026-09-12 17:00:00', 'CERT-CIPAA-2026-10492')
+    `).run();
+    db.prepare(`INSERT INTO ead_aulas_concluidas (matricula_id, aula_id) VALUES (3, 5)`).run();
+    db.prepare(`INSERT INTO ead_aulas_concluidas (matricula_id, aula_id) VALUES (3, 6)`).run();
+    db.prepare(`INSERT INTO ead_aulas_concluidas (matricula_id, aula_id) VALUES (3, 7)`).run();
+
+    // Mural Curso 2
+    db.prepare(`
+        INSERT INTO ead_mural (curso_id, autor_id, titulo, mensagem, importante, data_publicacao)
+        VALUES (2, 4, '🤝 Compromisso da MetalSul com um Ambiente Seguro e Respeitoso', 
+                'Todos os funcionários da empresa devem concluir este treinamento anual conforme exigência do Ministério do Trabalho e da Lei 14.457/2022. O Canal de Denúncias está sempre aberto para acolher relatos confidenciais.', 1, '2026-09-02 09:15:00')
+    `).run();
+
+    // Curso 3: NR-06 EPIs
+    db.prepare(`
+        INSERT INTO ead_cursos (id, titulo, descricao, categoria_nr, carga_horaria_horas, instrutor_id, thumbnail_url, nota_aprovacao_minima, conteudo_programatico, publico_alvo, ativo)
+        VALUES (3, 'NR-06: Equipamentos de Proteção Individual (EPIs) - Diretrizes, Uso e Guarda',
+                'Instrução normativa sobre o fornecimento gratuito, exigências de Certificado de Aprovação (C.A.), guarda, higienização, substituição periódica e obrigações do empregador e empregado.',
+                'NR-06', 4, 4, 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=600', 70.0,
+                '1. O que é EPI e responsabilidades da NR-06;\n2. Consulta e validade do Certificado de Aprovação (C.A.) no MTE;\n3. Guarda, higienização e manutenção correta;\n4. Recusa legítima ao trabalho e obrigações disciplinares.',
+                'Todos os colaboradores operacionais e técnicos.', 1)
+    `).run();
+
+    // Aulas Curso 3
+    db.prepare(`
+        INSERT INTO ead_aulas (id, curso_id, ordem, titulo, descricao, tipo_video, video_url, duracao_minutos, material_apoio)
+        VALUES (8, 3, 1, 'Módulo 1: Conceitos de EPI, EPC e a Hierarquia das Medidas de Controle', 'Por que o EPI é a última barreira de proteção e a importância da proteção coletiva.', 'link_externo', 'https://www.youtube.com/watch?v=ScMzIvxBSi4', 20, 'Cartilha_NR06_EPI.pdf')
+    `).run();
+    db.prepare(`
+        INSERT INTO ead_aulas (id, curso_id, ordem, titulo, descricao, tipo_video, video_url, duracao_minutos, material_apoio)
+        VALUES (9, 3, 2, 'Módulo 2: O Certificado de Aprovação (C.A.) e Responsabilidades do Trabalhador', 'Como verificar o C.A., comunicar danos imediatamente ao SESMT e assinar a ficha de entrega.', 'link_externo', 'https://www.youtube.com/watch?v=ScMzIvxBSi4', 20, 'Tabela_CAs_Validos.pdf')
+    `).run();
+
+    // Matrícula Carlos Eduardo (Curso 3 - 50% concluído)
+    db.prepare(`
+        INSERT INTO ead_matriculas (id, curso_id, colaborador_id, progresso_pct, status, nota_final, data_matricula, data_conclusao, certificado_codigo)
+        VALUES (4, 3, 2, 50.0, 'Em Andamento', NULL, '2026-09-18 10:00:00', NULL, NULL)
+    `).run();
+    db.prepare(`INSERT INTO ead_aulas_concluidas (matricula_id, aula_id) VALUES (4, 8)`).run();
+
+    // 20. CANAL DE DENÚNCIAS & LINHA ÉTICA (LEI 14.457/2022 / LGPD)
+    db.prepare(`
+        INSERT INTO denuncias (
+            id, protocolo, chave_acesso, tipo_denuncia, denunciante_nome, denunciante_email, denunciante_telefone,
+            denunciante_cargo_setor, categoria, descricao_fatos, data_ocorrencia, local_setor,
+            pessoas_envolvidas, testemunhas, tem_provas, descricao_provas, status, parecer_comite,
+            medidas_adotadas, data_conclusao, created_at
+        ) VALUES (
+            1, 'DEN-2026-7492', 'CHV-8X2M9P', 'Anonima', NULL, NULL, NULL,
+            NULL, 'Assédio Moral',
+            'O encarregado do galpão de tratamento térmico vem frequentemente expondo funcionários novatos a gritos e apelidos humilhantes na frente da equipe, ameaçando demissão sem justa causa caso façam pausas regulares para ir ao banheiro.',
+            'Semana de 15/09/2026', 'Galpão 02 - Tratamento Térmico e Decapagem',
+            'Encarregado do turno da manhã', 'Operadores do setor da manhã', 1,
+            'Áudios gravados em corredor compartilhado e mensagens de grupo de WhatsApp corporativo.',
+            'Em Apuração',
+            'Denúncia autuada pelo Comitê de Ética e CIPAA em 18/09/2026. Processo interno instaurado sob sigilo absoluto (LGPD Art. 6º). Entrevistas individuais reservadas com testemunhas em andamento pelo RH Corporativo.',
+            'Afastamento cautelar temporário do encarregado de funções com contato direto de liderança durante o período probatório das averiguações.',
+            NULL, '2026-09-18 14:32:10'
+        )
+    `).run();
+
+    db.prepare(`
+        INSERT INTO denuncias (
+            id, protocolo, chave_acesso, tipo_denuncia, denunciante_nome, denunciante_email, denunciante_telefone,
+            denunciante_cargo_setor, categoria, descricao_fatos, data_ocorrencia, local_setor,
+            pessoas_envolvidas, testemunhas, tem_provas, descricao_provas, status, parecer_comite,
+            medidas_adotadas, data_conclusao, created_at
+        ) VALUES (
+            2, 'DEN-2026-1038', 'CHV-3K7W1R', 'Identificada', 'Lucas Andrade', 'lucas.andrade@metalsul.com.br', '(19) 98765-4321',
+            'Operador de Caldeiraria - Galpão 01', 'Risco Grave de Acidente / Descumprimento de SST',
+            'O cabo de tração de aço da ponte rolante nº 03 apresenta rompimento visível de múltiplos arames em uma mesma perna e desgaste superior a 10% no diâmetro nominal, operando com risco iminente de ruptura e queda de chapas de 8 toneladas.',
+            '20/09/2026 às 08:30', 'Galpão 01 - Linha de Prensas e Ponte Rolante 03',
+            'Equipe de Manutenção Mecânica', 'Operadores de Prensa do Galpão 01', 1,
+            'Fotos detalhadas do cabo desgastado anexadas na inspeção pré-operacional diária.',
+            'Medidas Adotadas',
+            'Denúncia recebida e classificada com risco crítico alto (SST). Interdição cautelar imediata da ponte rolante executada pelo SESMT às 09:15 do mesmo dia.',
+            'Substituição integral do cabo de aço certificado (com C.A. e laudo de ensaio não-destrutivo) e emissão de laudo técnico de liberação operacional assinado por Engenheiro Mecânico legalmente habilitado.',
+            '2026-09-21 16:00:00', '2026-09-20 08:45:00'
+        )
+    `).run();
 
     console.log('[SafeWork Seed] Carga inicial concluída com sucesso!');
 }

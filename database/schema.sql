@@ -356,8 +356,146 @@ CREATE TABLE IF NOT EXISTS usuarios (
     login TEXT UNIQUE NOT NULL,
     senha_hash TEXT NOT NULL,
     salt TEXT NOT NULL,
-    perfil TEXT NOT NULL DEFAULT 'Administrador' CHECK(perfil IN ('Administrador', 'Gestor DP', 'Técnico SST', 'Visualizador')),
+    perfil TEXT NOT NULL DEFAULT 'Administrador' CHECK(perfil IN ('Administrador', 'Gestor DP', 'Técnico SST', 'Visualizador', 'Instrutor / Professor', 'Colaborador / Aluno')),
     ativo INTEGER NOT NULL DEFAULT 1,
     ultimo_acesso DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 20. ACADEMIA CORPORATIVA & CURSOS EAD (NR-01 ANEXO II)
+CREATE TABLE IF NOT EXISTS ead_cursos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    titulo TEXT NOT NULL,
+    descricao TEXT NOT NULL,
+    categoria_nr TEXT NOT NULL, -- Ex: 'NR-35', 'NR-10', 'NR-01', 'CIPA+A'
+    carga_horaria_horas INTEGER NOT NULL DEFAULT 4,
+    instrutor_id INTEGER NOT NULL,
+    thumbnail_url TEXT,
+    nota_aprovacao_minima REAL DEFAULT 70.0,
+    conteudo_programatico TEXT,
+    publico_alvo TEXT,
+    ativo INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (instrutor_id) REFERENCES usuarios(id)
+);
+
+CREATE TABLE IF NOT EXISTS ead_aulas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    curso_id INTEGER NOT NULL,
+    ordem INTEGER NOT NULL DEFAULT 1,
+    titulo TEXT NOT NULL,
+    descricao TEXT,
+    tipo_video TEXT NOT NULL DEFAULT 'link_externo' CHECK(tipo_video IN ('link_externo', 'upload', 'incorporado')),
+    video_url TEXT NOT NULL,
+    duracao_minutos INTEGER DEFAULT 15,
+    material_apoio TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (curso_id) REFERENCES ead_cursos(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS ead_matriculas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    curso_id INTEGER NOT NULL,
+    colaborador_id INTEGER NOT NULL,
+    progresso_pct REAL DEFAULT 0.0,
+    status TEXT DEFAULT 'Em Andamento' CHECK(status IN ('Em Andamento', 'Pendente Prova', 'Aprovado', 'Reprovado')),
+    nota_final REAL,
+    data_matricula DATETIME DEFAULT CURRENT_TIMESTAMP,
+    data_conclusao DATETIME,
+    certificado_codigo TEXT UNIQUE,
+    FOREIGN KEY (curso_id) REFERENCES ead_cursos(id) ON DELETE CASCADE,
+    FOREIGN KEY (colaborador_id) REFERENCES colaboradores(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS ead_aulas_concluidas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    matricula_id INTEGER NOT NULL,
+    aula_id INTEGER NOT NULL,
+    data_conclusao DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(matricula_id, aula_id),
+    FOREIGN KEY (matricula_id) REFERENCES ead_matriculas(id) ON DELETE CASCADE,
+    FOREIGN KEY (aula_id) REFERENCES ead_aulas(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS ead_avaliacoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    curso_id INTEGER NOT NULL,
+    titulo TEXT NOT NULL,
+    descricao TEXT,
+    nota_minima REAL DEFAULT 70.0,
+    questoes_json TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (curso_id) REFERENCES ead_cursos(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS ead_respostas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    matricula_id INTEGER NOT NULL,
+    avaliacao_id INTEGER NOT NULL,
+    respostas_json TEXT NOT NULL,
+    nota_obtida REAL NOT NULL,
+    aprovado INTEGER NOT NULL DEFAULT 0,
+    tentativa_numero INTEGER DEFAULT 1,
+    data_envio DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (matricula_id) REFERENCES ead_matriculas(id) ON DELETE CASCADE,
+    FOREIGN KEY (avaliacao_id) REFERENCES ead_avaliacoes(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS ead_mural (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    curso_id INTEGER NOT NULL,
+    autor_id INTEGER NOT NULL,
+    titulo TEXT NOT NULL,
+    mensagem TEXT NOT NULL,
+    importante INTEGER DEFAULT 0,
+    data_publicacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (curso_id) REFERENCES ead_cursos(id) ON DELETE CASCADE,
+    FOREIGN KEY (autor_id) REFERENCES usuarios(id)
+);
+
+CREATE TABLE IF NOT EXISTS ead_duvidas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    curso_id INTEGER NOT NULL,
+    colaborador_id INTEGER NOT NULL,
+    pergunta TEXT NOT NULL,
+    resposta TEXT,
+    respondida_por INTEGER,
+    data_pergunta DATETIME DEFAULT CURRENT_TIMESTAMP,
+    data_resposta DATETIME,
+    FOREIGN KEY (curso_id) REFERENCES ead_cursos(id) ON DELETE CASCADE,
+    FOREIGN KEY (colaborador_id) REFERENCES colaboradores(id) ON DELETE CASCADE,
+    FOREIGN KEY (respondida_por) REFERENCES usuarios(id)
+);
+
+-- 21. CANAL DE DENÚNCIAS & LINHA ÉTICA (LEI 14.457/2022 - CIPA+A / LGPD / COMPLIANCE)
+CREATE TABLE IF NOT EXISTS denuncias (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    protocolo TEXT UNIQUE NOT NULL,
+    chave_acesso TEXT NOT NULL,
+    tipo_denuncia TEXT NOT NULL CHECK(tipo_denuncia IN ('Anonima', 'Identificada')),
+    denunciante_nome TEXT,
+    denunciante_email TEXT,
+    denunciante_telefone TEXT,
+    denunciante_cargo_setor TEXT,
+    categoria TEXT NOT NULL CHECK(categoria IN (
+        'Assédio Sexual (Lei 14.457/22)',
+        'Assédio Moral',
+        'Discriminação / Preconceito',
+        'Risco Grave de Acidente / Descumprimento de SST',
+        'Fraude / Corrupção / Desvio',
+        'Outros'
+    )),
+    descricao_fatos TEXT NOT NULL,
+    data_ocorrencia TEXT,
+    local_setor TEXT,
+    pessoas_envolvidas TEXT,
+    testemunhas TEXT,
+    tem_provas INTEGER DEFAULT 0,
+    descricao_provas TEXT,
+    status TEXT DEFAULT 'Recebida' CHECK(status IN ('Recebida', 'Em Apuração', 'Medidas Adotadas', 'Concluída', 'Arquivada')),
+    parecer_comite TEXT,
+    medidas_adotadas TEXT,
+    data_conclusao DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
